@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weaving Chart – Precise Dot Layout</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #controls {
+      padding: 10px;
+      background: #f0f0f0;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 0;
+      padding: 6px 0;
+      font-size: 1rem;
+      background: #eee;
+    }
+
+    #chart-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .chart-box {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    td, th {
+      border: 1px solid #ccc;
+      padding: 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    th.col-label {
+      font-size: 12px;
+      padding: 2px 4px;
+    }
+
+    th.row-label {
+      font-size: 12px;
+      width: 30px;
+      text-align: right;
+      padding-right: 4px;
+    }
+
+    .grid-cell {
+      position: relative;
+    }
+
+    .dot {
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .dot.blue {
+      background-color: #007BFF;
+    }
+
+    .dot.yellow {
+      background-color: #FFD700;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="epi">EPI:</label>
+    <input type="number" id="epi" value="8">
+    <label for="ppi">PPI:</label>
+    <input type="number" id="ppi" value="34">
+    <label for="warps">Width (warps):</label>
+    <input type="number" id="warps" value="11">
+    <button onclick="generateCharts()">Generate</button>
+  </div>
+
+  <h2>Left: Picks (Blue)  Right: Woven Rows (Yellow)</h2>
+  <div id="chart-container">
+    <div class="chart-box" id="pickChart"></div>
+    <div class="chart-box" id="rowChart"></div>
+  </div>
+
+  <script>
+    function generateCharts() {
+      const epi = parseFloat(document.getElementById("epi").value);
+      const ppi = parseFloat(document.getElementById("ppi").value);
+      const warps = parseInt(document.getElementById("warps").value);
+
+      const picks = Math.round(warps * (ppi / epi));
+      const rows = Math.floor(picks / 2);
+
+      const controlsHeight = document.getElementById("controls").offsetHeight;
+      const headingHeight = document.querySelector("h2").offsetHeight;
+
+      const totalAvailableHeight = window.innerHeight;
+      const usableHeight = totalAvailableHeight - controlsHeight - headingHeight;
+
+      const bottomMargin = usableHeight * 0.05;
+      const chartHeight = usableHeight - bottomMargin;
+
+      const chartGap = 40;
+      const rowLabelWidth = 40;
+      const containerPadding = 20;
+      const availableWidth = (window.innerWidth - chartGap - 2 * rowLabelWidth - containerPadding * 2) / 2;
+
+      function calculateDimensions(numRows) {
+        const aspectRatio = (numRows * epi / ppi) / warps;
+        const containerAspect = chartHeight / availableWidth;
+
+        let cellWidth, cellHeight;
+        if (aspectRatio > containerAspect) {
+          cellHeight = chartHeight / numRows;
+          cellWidth = cellHeight * (ppi / epi);
+        } else {
+          cellWidth = availableWidth / warps;
+          cellHeight = cellWidth * (epi / ppi);
+        }
+
+        const dotSize = 0.75 * Math.min(cellWidth, cellHeight);
+        return { cellWidth, cellHeight, dotSize };
+      }
+
+      function makeTable(isRowTable, dims) {
+        const rowsToRender = isRowTable ? rows : picks;
+        const cx = (warps - 1) / 2;
+        const cy = (picks - 1) / 2;
+        const rx = warps / 2;
+        const ry = picks / 2;
+        const color = isRowTable ? 'yellow' : 'blue';
+
+        const cellH = isRowTable ? dims.cellHeight * 2 : dims.cellHeight;
+
+        let html = '<table><thead><tr><th></th>';
+        for (let x = 0; x < warps; x++) {
+          html += `<th class="col-label">${x + 1}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        for (let y = rowsToRender - 1; y >= 0; y--) {
+          html += `<tr><th class="row-label">${rowsToRender - y}</th>`;
+          for (let x = 0; x < warps; x++) {
+            const dx = (x - cx) / rx;
+            let dot = '';
+
+            if (isRowTable) {
+              const p1 = y * 2;
+              const p2 = p1 + 1;
+              const dy1 = (p1 - cy) / ry;
+              const dy2 = (p2 - cy) / ry;
+              if (dx * dx + dy1 * dy1 <= 1 || dx * dx + dy2 * dy2 <= 1) {
+                dot = `<div class="dot ${color}" style="width:${dims.dotSize}px; height:${dims.dotSize}px;"></div>`;
+              }
+            } else {
+              const dy = (y - cy) / ry;
+              if (dx * dx + dy * dy <= 1) {
+                dot = `<div class="dot ${color}" style="width:${dims.dotSize}px; height:${dims.dotSize}px;"></div>`;
+              }
+            }
+
+            html += `<td class="grid-cell" style="width:${dims.cellWidth}px; height:${cellH.toFixed(2)}px;">${dot}</td>`;
+          }
+          html += '</tr>';
+        }
+
+        html += '</tbody></table>';
+        return html;
+      }
+
+      const pickDims = calculateDimensions(picks);
+      const rowDims = calculateDimensions(rows * 2); // because row chart uses double picks
+
+      document.getElementById("pickChart").innerHTML = makeTable(false, pickDims);
+      document.getElementById("rowChart").innerHTML = makeTable(true, rowDims);
+    }
+
+    window.onload = generateCharts;
+    window.onresize = generateCharts;
+  </script>
+</body>
+</html>
