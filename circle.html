@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Weaving Circle Drafting Tool vB8</title>
+  <meta charset="UTF-8" />
+  <title>Weaving Circle Drafting Tool vB10</title>
   <link href="https://fonts.googleapis.com/css2?family=Figtree&display=swap" rel="stylesheet">
   <style>
     html, body {
@@ -32,20 +32,39 @@
       font-size: 12px;
     }
 
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
     #controls {
       padding: 10px;
       background: #f6f6f6;
-      border-bottom: 1px solid #ccc;
-      text-align: center;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: flex-start;
+      width: 220px;
+      box-sizing: border-box;
     }
 
-    #controls input, #controls button, #controls select {
+    #controls label {
+      margin-top: 6px;
+    }
+
+    #controls input,
+    #controls select,
+    #controls button {
       font-size: 14px;
-      margin: 4px;
+      margin-top: 4px;
       padding: 4px 6px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-family: 'Figtree', sans-serif;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     #controls button {
@@ -63,17 +82,27 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      overflow: hidden;
-      padding: 0 4vw;
-      gap: 4vw;
+      padding: 0 3vw;
       box-sizing: border-box;
+      gap: 4vw;
     }
 
     .chart-box {
-      display: flex;
+      display: none;
       justify-content: center;
       align-items: center;
+    }
+
+    .chart-box.active.single {
+      flex: 1;
+      display: flex;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+
+    .chart-box.active.double {
       flex: 0 0 calc(50% - 2vw);
+      display: flex;
       height: 100%;
     }
 
@@ -115,22 +144,30 @@
 <body>
   <header>
     Weaving Circle Drafting Tool
-    <span id="version">vB8</span>
+    <span id="version">vB10</span>
   </header>
 
-  <div id="controls">
-    <label for="epi">EPI:</label>
-    <input type="number" id="epi" value="8">
-    <label for="ppi">PPI:</label>
-    <input type="number" id="ppi" value="34">
-    <label for="warps">Width (warps):</label>
-    <input type="number" id="warps" value="11">
-    <button onclick="generate()">Generate</button>
-  </div>
+  <div id="main">
+    <div id="controls">
+      <label for="epi">EPI:</label>
+      <input type="number" id="epi" value="8">
+      <label for="ppi">PPI:</label>
+      <input type="number" id="ppi" value="34">
+      <label for="warps">Width (warps):</label>
+      <input type="number" id="warps" value="11">
+      <label for="viewMode">Show:</label>
+      <select id="viewMode" onchange="generate()">
+        <option value="rows" selected>Rows</option>
+        <option value="picks">Picks</option>
+        <option value="both">Both</option>
+      </select>
+      <button onclick="generate()">Generate</button>
+    </div>
 
-  <div id="chart-container">
-    <div class="chart-box" id="rowChartBox"></div>
-    <div class="chart-box" id="pickChartBox"></div>
+    <div id="chart-container">
+      <div class="chart-box" id="rowChartBox"></div>
+      <div class="chart-box" id="pickChartBox"></div>
+    </div>
   </div>
 
   <script>
@@ -155,15 +192,19 @@
       const epi = +document.getElementById('epi').value;
       const ppi = +document.getElementById('ppi').value;
       const warps = +document.getElementById('warps').value;
+      const viewMode = document.getElementById('viewMode').value;
 
       const picks = Math.floor((ppi / epi) * warps);
       const rows = Math.floor(picks / 2);
 
       const headerHeight = document.querySelector('header').offsetHeight;
       const controlsHeight = document.getElementById('controls').offsetHeight;
-      const margin = window.innerHeight * 0.05;
-      const chartHeight = window.innerHeight - headerHeight - controlsHeight - margin;
-      const chartWidth = window.innerWidth * 0.42;
+      const availableHeight = window.innerHeight - headerHeight - 20;
+      const chartsShown = viewMode === 'both' ? 2 : 1;
+      const availableWidth = window.innerWidth - 250 - 40;
+
+      const chartWidth = chartsShown === 2 ? availableWidth / 2 : availableWidth;
+      const chartHeight = availableHeight;
 
       const dimsPicks = calculateDimensions(rows * 2, warps, epi, ppi, chartWidth, chartHeight);
       const dimsRows = {
@@ -175,7 +216,7 @@
       const fontSizePicks = Math.floor(dimsPicks.cellHeight * 0.6);
       const fontSizeRows = Math.floor(dimsRows.cellHeight * 0.6);
 
-      let rowData = Array.from({ length: rows }, (_, y) =>
+      const rowData = Array.from({ length: rows }, (_, y) =>
         Array.from({ length: warps }, (_, x) => {
           const cx = (warps - 1) / 2;
           const cy = (rows - 1) / 2;
@@ -187,7 +228,7 @@
         })
       );
 
-      let pickData = Array.from({ length: rows * 2 }, (_, y) => {
+      const pickData = Array.from({ length: rows * 2 }, (_, y) => {
         const row = Math.floor(y / 2);
         const isEvenPick = y % 2 === 0;
         return rowData[row].map((val, x) => {
@@ -229,8 +270,25 @@
         return table;
       }
 
-      document.getElementById('rowChartBox').innerHTML = makeTable(rowData, dimsRows, 'green', true, fontSizeRows);
-      document.getElementById('pickChartBox').innerHTML = makeTable(pickData, dimsPicks, '', false, fontSizePicks);
+      const rowBox = document.getElementById('rowChartBox');
+      const pickBox = document.getElementById('pickChartBox');
+      rowBox.className = 'chart-box';
+      pickBox.className = 'chart-box';
+
+      if (viewMode === 'rows') {
+        rowBox.classList.add('active', 'single');
+        rowBox.innerHTML = makeTable(rowData, dimsRows, 'green', true, fontSizeRows);
+        pickBox.innerHTML = '';
+      } else if (viewMode === 'picks') {
+        pickBox.classList.add('active', 'single');
+        pickBox.innerHTML = makeTable(pickData, dimsPicks, '', false, fontSizePicks);
+        rowBox.innerHTML = '';
+      } else {
+        rowBox.classList.add('active', 'double');
+        pickBox.classList.add('active', 'double');
+        rowBox.innerHTML = makeTable(rowData, dimsRows, 'green', true, fontSizeRows);
+        pickBox.innerHTML = makeTable(pickData, dimsPicks, '', false, fontSizePicks);
+      }
     }
 
     window.onload = generate;
