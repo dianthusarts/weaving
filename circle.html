@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Weaving Circle Drafting Tool vB10</title>
+  <title>Weaving Circle Drafting Tool vB14</title>
+  <!-- hand -edited -->
   <link href="https://fonts.googleapis.com/css2?family=Figtree&display=swap" rel="stylesheet">
   <style>
     html, body {
@@ -16,65 +17,90 @@
     }
 
     header {
-      background: #002244;
-      color: white;
+      background: #87CEEB;
+      color: black;
       text-align: center;
       padding: 10px;
       font-size: 18px;
       position: relative;
+      border-bottom: 1px solid #ccc;
     }
 
     #version {
       position: absolute;
       top: 10px;
       right: 10px;
-      color: #ccc;
+      color: #444;
       font-size: 12px;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: #e9f6fb;
+      border-bottom: 1px solid #ccc;
+      gap: 12px;
+    }
+
+    .left-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+      justify-content: flex-end;
+    }
+
+    #viewMode {
+      min-width: 120px;
+    }
+
+    .control-group label {
+      margin-bottom: 2px;
+    }
+
+    .control-group input,
+    .control-group select {
+      font-size: 14px;
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: 'Figtree', sans-serif;
+    }
+
+    #generateButton {
+      background-color: #87CEEB;
+      color: black;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 4px;
+      height: 32px;
+    }
+
+    #generateButton:hover {
+      background-color: #80c3dd;
+    }
+
+    .right-controls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     #main {
       flex: 1;
       display: flex;
       overflow: hidden;
-    }
-
-    #controls {
-      padding: 10px;
-      background: #f6f6f6;
-      border-right: 1px solid #ccc;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: flex-start;
-      width: 220px;
-      box-sizing: border-box;
-    }
-
-    #controls label {
-      margin-top: 6px;
-    }
-
-    #controls input,
-    #controls select,
-    #controls button {
-      font-size: 14px;
-      margin-top: 4px;
-      padding: 4px 6px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-family: 'Figtree', sans-serif;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    #controls button {
-      background-color: #007BFF;
-      color: white;
-      cursor: pointer;
-    }
-
-    #controls button:hover {
-      background-color: #0056b3;
     }
 
     #chart-container {
@@ -132,38 +158,50 @@
       background-color: #3CB371;
     }
 
-    .dot.blue {
-      background-color: #007BFF;
+    .dot.pick-over {
+      background-color: #ff5b00;
     }
 
-    .dot.pale {
-      background-color: #cce4ff;
+    .dot.pick-under {
+      background-color: #ffcbaf;
     }
   </style>
 </head>
 <body>
   <header>
     Weaving Circle Drafting Tool
-    <span id="version">vB10</span>
+    <span id="version">vB14</span>
   </header>
 
-  <div id="main">
-    <div id="controls">
-      <label for="epi">EPI:</label>
-      <input type="number" id="epi" value="8">
-      <label for="ppi">PPI:</label>
-      <input type="number" id="ppi" value="34">
-      <label for="warps">Width (warps):</label>
-      <input type="number" id="warps" value="11">
-      <label for="viewMode">Show:</label>
+  <div id="controls">
+    <div class="left-controls">
+      <div class="control-group">
+        <label for="epi">EPI:</label>
+        <input type="number" id="epi" value="8">
+      </div>
+      <div class="control-group">
+        <label for="ppi">PPI:</label>
+        <input type="number" id="ppi" value="34">
+      </div>
+      <div class="control-group">
+        <label for="warps">Width (warps):</label>
+        <input type="number" id="warps" value="11">
+      </div>
+       <div class="control-group">
+      <button id="generateButton" onclick="generate()">Generate</button>
+    </div>
+    </div>
+    <div class="right-controls">
+      <label for="viewMode">Display</label>
       <select id="viewMode" onchange="generate()">
         <option value="rows" selected>Rows</option>
         <option value="picks">Picks</option>
         <option value="both">Both</option>
       </select>
-      <button onclick="generate()">Generate</button>
     </div>
+  </div>
 
+  <div id="main">
     <div id="chart-container">
       <div class="chart-box" id="rowChartBox"></div>
       <div class="chart-box" id="pickChartBox"></div>
@@ -199,9 +237,9 @@
 
       const headerHeight = document.querySelector('header').offsetHeight;
       const controlsHeight = document.getElementById('controls').offsetHeight;
-      const availableHeight = window.innerHeight - headerHeight - 20;
+      const availableHeight = window.innerHeight - headerHeight - controlsHeight - 60;
       const chartsShown = viewMode === 'both' ? 2 : 1;
-      const availableWidth = window.innerWidth - 250 - 40;
+      const availableWidth = window.innerWidth - 40;
 
       const chartWidth = chartsShown === 2 ? availableWidth / 2 : availableWidth;
       const chartHeight = availableHeight;
@@ -234,13 +272,16 @@
         return rowData[row].map((val, x) => {
           if (!val) return null;
           const isWarpUp = (x % 2 === 0) === isEvenPick;
-          return isWarpUp ? 'blue' : 'pale';
+          return isWarpUp ? 'pick-over' : 'pick-under';
         });
       });
 
       function makeTable(data, dims, dotClass, isRow, fontSize) {
         const numRows = data.length;
         const numCols = data[0].length;
+        if ( fontSize > 28 ) {
+          fontSize=28;
+        }
         let table = `<table style="font-size:${fontSize}px"><thead><tr><th></th>`;
         for (let x = 0; x < numCols; x++) {
           table += `<th>${x + 1}</th>`;
@@ -252,14 +293,14 @@
             let borderTop = '1px solid #ccc';
             let borderBottom = '1px solid #ccc';
             if (!isRow) {
-              if (y % 2 === 1) borderBottom = '2px solid black';
-              if (y % 2 === 0) borderTop = '2px solid black';
+              if (y % 2 === 0) borderBottom = '2px solid black';
+              if (y % 2 === 1) borderTop = '2px solid black';
             }
             const cell = data[y][x];
             let dot = '';
             if (cell === true) {
               dot = `<div class="dot ${dotClass}" style="width:${dims.dotSize}px;height:${dims.dotSize}px;"></div>`;
-            } else if (cell === 'blue' || cell === 'pale') {
+            } else if (cell === 'pick-over' || cell === 'pick-under') {
               dot = `<div class="dot ${cell}" style="width:${dims.dotSize}px;height:${dims.dotSize}px;"></div>`;
             }
             table += `<td class="grid-cell" style="width:${dims.cellWidth}px;height:${dims.cellHeight}px;border-left:1px solid #ccc;border-right:1px solid #ccc;border-top:${borderTop};border-bottom:${borderBottom};">${dot}</td>`;
