@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Color Match from Image or Hex Values</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2em;
+    }
+
+    canvas {
+      border: 1px solid #ccc;
+      cursor: crosshair;
+      margin-top: 1em;
+      max-width: 100%;
+    }
+
+    .results {
+      margin-top: 2em;
+    }
+
+    .swatch-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5em;
+    }
+
+    .swatch {
+      width: 15%;
+      min-width: 120px;
+      height: 80px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      object-fit: cover;
+      margin: 0;
+      padding: 0;
+    }
+
+    .label {
+      font-size: 14px;
+      padding-left: 1em;
+      white-space: nowrap;
+    }
+
+    #imageCanvas {
+      display: none;
+    }
+
+    .input-block {
+      margin-top: 2em;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Color Match from Image Region or Hex Values</h1>
+
+<!-- Image upload and region select -->
+<div>
+  <label>Select an image:</label>
+  <input type="file" id="imageInput" accept="image/*" />
+  <p id="instructions" style="display:none;">Click and drag on the image to select a region.</p>
+  <canvas id="imageCanvas" width="600" height="400"></canvas>
+</div>
+
+<!-- Manual hex input -->
+<div class="input-block">
+  <label>Or enter comma-separated hex values:</label><br />
+  <input
+    type="text"
+    id="hexInput"
+    placeholder="#FF0000, #00FF00, #0000FF"
+    style="width: 100%; margin-top: 0.5em"
+  />
+  <button id="matchHexList" style="margin-top: 0.5em">Match Entered Hex Colors</button>
+</div>
+
+<div class="results" id="colorResults"></div>
+
+<script type="module">
+  import Color from "https://cdn.jsdelivr.net/npm/colorjs.io/+esm";
+
+  const canvas = document.getElementById("imageCanvas");
+  const ctx = canvas.getContext("2d");
+  const resultsDiv = document.getElementById("colorResults");
+
+  const hexInput = document.getElementById("hexInput");
+  const matchHexList = document.getElementById("matchHexList");
+
+  let startX, startY, endX, endY;
+  let isDragging = false;
+  let image = new Image();
+  let colorList = [];
+
+  async function loadCSV(url) {
+    const response = await fetch(url);
+    const text = await response.text();
+    return text
+      .trim()
+      .split("\n")
+      .slice(1)
+      .map((line) => {
+        // split by comma, but some entries might be quoted or contain commas? 
+        // assuming simple CSV with no commas in fields:
+        const cols = line.split(",");
+        return {
+          name: cols[3].trim(), // 4th column = image file name
+          hex: cols[2].trim(),  // 3rd column = hex value
+        };
+      });
+  }
+
+  function getAverageColor(imageData) {
+    const data = imageData.data;
+    let r = 0,
+      g = 0,
+      b = 0;
+    const len = data.length / 4;
+
+    for (let i = 0; i < data.length; i += 4) {
+      r += data[i];
+      g += data[i + 1];
+      b += data[i + 2];
+    }
+
+    return `#${[
+      Math.round(r / len),
+      Math.round(g / len),
+      Math.round(b / len),
+    ]
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("")}`;
+  }
+
+  function findClosestLabColors(targetHex, topN = 5) {
+    const target = new Color(targetHex).to("lab");
+
+    return colorList
+      .map((entry) => {
+        const candidate = new Color(entry.hex).to("lab");
+        const deltaE = target.deltaE(candidate);
+        return { ...entry, deltaE };
+      })
+      .sort((a, b) => a.deltaE - b.deltaE)
+      .slice(0, topN);
+  }
+
+  function cleanName(fileName) {
+    return fileName
+      .replace(/_5000.*$/, "") // remove _5000x.jpg
+      .replace("-", " ") // convert dash to space
+      .replace(".jpg", "") // remove extension
+      .replace(/(^|\s)\S/g, (s) => s.toUpperCase()); // capitalize
+  }
+
+  function renderResultsForColor(
+    titleText,
+    inputColorHex,
+    matches,
+    useBlockSwatch = true,
+    imageData = null
+  ) {
+    const section = document.createElement("div");
+    section.className = "results";
+
+    const title = document.createElement("div");
+    title.innerHTML = `<strong>${titleText}</strong>`;
+    section.appendChild(title);
+
+    matches.forEach(({ name, hex }) => {
+      const row = document.createElement("div");
+      row.className = "swatch-row";
+
+      // 1. Selected swatch (either solid input color or resized image area)
+      let swatchElement;
+
+      if (useBlockSwatch) {
+        swatchElement = document.createElement("div");
+        swatchElement.className = "swatch";
+        swatchElement.style.backgroundColor = inputColorHex;
+      } else {
+        swatchElement = document.createElement("canvas");
+        swatchElement.className = "swatch";
+        swatchElement.width = 120;
+        swatchElement.height = 80;
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = imageData.width;
+        tempCanvas.height = imageData.height;
+        tempCanvas.getContext("2d").putImageData(imageData, 0, 0);
+        swatchElement.getContext("2d").drawImage(tempCanvas, 0, 0, 120, 80);
+      }
+
+      // 2. Solid color match
+      const solid = document.createElement("div");
+      solid.className = "swatch";
+      solid.style.backgroundColor = hex;
+
+      // 3. Reference image
+      const imageThumb = document.createElement("img");
+      imageThumb.className = "swatch";
+      imageThumb.src = "images/" + name;
+      imageThumb.alt = name;
+
+      // 4. Hex value
+      const hexDiv = document.createElement("div");
+      hexDiv.className = "label";
+      hexDiv.textContent = hex.toUpperCase();
+
+      // 5. Clean name
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = cleanName(name);
+
+      row.appendChild(swatchElement);
+      row.appendChild(solid);
+      row.appendChild(imageThumb);
+      row.appendChild(hexDiv);
+      row.appendChild(label);
+      section.appendChild(row);
+    });
+
+    resultsDiv.appendChild(section);
+  }
+
+  // ========== Manual HEX Input Handler ==========
+  matchHexList.addEventListener("click", () => {
+    const input = hexInput.value.trim();
+    if (!input) return;
+
+    const hexList = input
+      .split(",")
+      .map((hex) => hex.trim())
+      .filter((hex) => /^#?[0-9a-fA-F]{6}$/.test(hex));
+    if (hexList.length === 0) {
+      alert("Please enter valid hex codes (e.g., #FF0000, #00FF00)");
+      return;
+    }
+
+    resultsDiv.innerHTML = ""; // Clear previous
+
+    hexList.forEach((hex) => {
+      if (!hex.startsWith("#")) hex = "#" + hex;
+      const matches = findClosestLabColors(hex);
+      renderResultsForColor(
+        `Input Color: ${hex.toUpperCase()}`,
+        hex,
+        matches,
+        true
+      );
+    });
+  });
+
+  // ========== Image Region Selection ==========
+  canvas.addEventListener("mousedown", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    isDragging = true;
+  });
+
+  canvas.addEventListener("mouseup", (e) => {
+    if (!isDragging) return;
+    const rect = canvas.getBoundingClientRect();
+    endX = e.clientX - rect.left;
+    endY = e.clientY - rect.top;
+    isDragging = false;
+
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+
+    if (width < 5 || height < 5) {
+      alert("Select a larger region.");
+      return;
+    }
+
+    const imageData = ctx.getImageData(x, y, width, height);
+    const avgHex = getAverageColor(imageData);
+    const matches = findClosestLabColors(avgHex);
+
+    resultsDiv.innerHTML = "";
+    renderResultsForColor(
+      `Selected Region (Avg: ${avgHex.toUpperCase()})`,
+      avgHex,
+      matches,
+      false,
+      imageData
+    );
+  });
+
+  // ========== Image Upload ==========
+  document.getElementById("imageInput").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      image = new Image();
+      image.onload = () => {
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+        canvas.style.display = "block";
+        document.getElementById("instructions").style.display = "block";
+      };
+      image.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ========== Load Color CSV ==========
+  loadCSV("data/gist.csv")
+    .then((data) => {
+      colorList = data;
+    })
+    .catch((err) => {
+      resultsDiv.innerText = "Failed to load color list: " + err.message;
+    });
+</script>
+
+</body>
+</html>
