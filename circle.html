@@ -209,6 +209,22 @@
   </div>
 
   <script>
+    const _keys = [ 'epi', 'ppi', 'warps'];
+    function setStorage() {
+      for ( let key of _keys )
+      localStorage.setItem( key,  document.getElementById( key ).value );
+    }
+    function getStorage() { // id = key
+      for ( let key of _keys ) {
+        var val = localStorage.getItem( key );
+        if ( val != null ) {
+          var elem = document.getElementById( key );
+          if ( elem ) {
+            elem.value = val;
+          }
+        }
+      }
+    }
     function calculateDimensions(numRows, warps, epi, ppi, containerWidth, containerHeight) {
       const aspectRatio = (numRows * epi / ppi) / warps;
       const containerAspect = containerHeight / containerWidth;
@@ -227,6 +243,7 @@
     }
 
     function generate() {
+      setStorage();
       const epi = +document.getElementById('epi').value;
       const ppi = +document.getElementById('ppi').value;
       const warps = +document.getElementById('warps').value;
@@ -311,6 +328,9 @@
         return table;
       }
 
+
+      
+      
       const rowBox = document.getElementById('rowChartBox');
       const pickBox = document.getElementById('pickChartBox');
       rowBox.className = 'chart-box';
@@ -332,6 +352,8 @@
       }
     }
 
+
+    getStorage();
     window.onload = generate;
     window.onresize = () => {
       clearTimeout(window._resizeTimer);
