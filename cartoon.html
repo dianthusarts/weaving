@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weaving Pattern Grid Tool (Auto-Digitization)</title>
+    <style>
+        /* --- Layout & Basic Reset --- */
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background-color: #333; }
+        
+        #patternGridContainer {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            background-color: #fff;
+        }
+
+        /* --- Menu Bar --- */
+        #patternGridMenu {
+            height: 46px;
+            background-color: #f4f4f4;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            flex-shrink: 0;
+            gap: 6px;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        button {
+            padding: 6px 10px;
+            cursor: pointer;
+            border: 1px solid #aaa;
+            background: linear-gradient(to bottom, #fff, #f0f0f0);
+            border-radius: 3px;
+            font-size: 13px;
+            color: #333;
+        }
+        button:hover { background: #e8e8e8; border-color: #888; }
+        button:active { background: #ccc; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
+        
+        .separator { width: 1px; height: 24px; background: #ccc; margin: 0 4px; }
+
+        /* --- Tool Area --- */
+        #patternGridTool {
+            flex-grow: 1;
+            position: relative; 
+            overflow: auto;     
+            background-color: #888; 
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        #canvasWrapper {
+            position: relative; 
+            margin: 0; 
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+            background-color: white; 
+            transform-origin: 0 0;
+        }
+
+        #tracingLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: none; 
+            transform-origin: 0 0;
+        }
+
+        #gridCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            cursor: crosshair;
+            /* Added transition for smooth opacity change */
+            transition: opacity 0.2s ease-in-out; 
+        }
+
+        /* --- Modals --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; top: 0; 
+            width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 400px;
+            border-radius: 6px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-size: 14px;
+        }
+
+        .modal-header { font-weight: bold; font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        .form-group { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .form-group label { font-weight: 600; color: #555; }
+        .form-group input { padding: 4px; width: 60px; }
+        .form-group input[type="range"] { width: 140px; }
+        
+        .control-row { display: flex; gap: 10px; margin-top: 10px; }
+        .control-row button { flex: 1; }
+
+        /* --- Palette Styles --- */
+        .swatch-container {
+            display: flex; flex-wrap: wrap; gap: 4px; padding: 10px;
+            border: 1px solid #ccc; min-height: 50px; margin-bottom: 10px;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+        .color-swatch {
+            width: 22px; height: 22px; border: 1px solid #999; cursor: pointer; box-sizing: border-box;
+        }
+        .color-swatch:hover { border-color: black; transform: scale(1.2); z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .color-swatch.selected { border: 2px solid #000; box-shadow: 0 0 0 1px white inset; }
+        
+        #current-color-display {
+            width: 28px; height: 28px; border: 1px solid #666;
+            display: inline-block; vertical-align: middle;
+            margin-right: 5px; box-shadow: inset 0 0 2px rgba(0,0,0,0.3);
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="patternGridContainer">
+    <div id="patternGridMenu">
+        <button id="btnOpen">📂 Open</button>
+        <button id="btnSave">💾 Save</button>
+        <div class="separator"></div>
+
+        <button id="btnUndo">↩️ Undo</button>
+        <button id="btnRedo">↪️ Redo</button>
+        <button id="btnClear">❌ Clear</button>
+        <div class="separator"></div>
+
+        <button id="btnGridSettings">📐 Grid Setup</button>
+        <div class="separator"></div>
+        
+        <div id="current-color-display" style="background-color: #000;" title="Current Paint Color"></div>
+        <button id="btnPalette">🎨 Palette</button>
+        <div class="separator"></div>
+
+        <button id="btnDigitizeToggle" title="Toggle Grid Visibility">👁️ Toggle View</button>
+        <button id="btnDigitizeRead">📁 Load Img</button>
+        <button id="btnDigitizeSettings" style="background: #fffacd;">🍌 Image Settings</button>
+        <div class="separator"></div>
+        
+        <button id="btnZoomOut">➖</button>
+        <span id="zoomLabel" style="width: 40px; text-align: center; font-size: 12px;">100%</span>
+        <button id="btnZoomIn">➕</button>
+    </div>
+
+    <div id="patternGridTool">
+        <div id="canvasWrapper">
+            <img id="tracingLayer" alt="" src="">
+            <canvas id="gridCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<div id="gridModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">Grid Configuration</div>
+        <div class="form-group">
+            <label>Warps (Columns/Width):</label>
+            <input type="number" id="inpCols" min="1" max="2000">
+        </div>
+        <div class="form-group">
+            <label>Wefts (Rows/Height):</label>
+            <input type="number" id="inpRows" min="1" max="5000">
+        </div>
+        <div class="form-group">
+            <label title="Width divided by Height of a single cell">Cell Ratio (W/H):</label>
+            <input type="number" id="inpRatio" step="0.1" min="0.1">
+        </div>
+        <p style="font-size:12px; color:#666;">Current Default: 4 Inches Wide (32 Warps @ 8 WPI) x 7 Inches Tall (126 Wefts).<br>For 9/2 weaving, Ratio is typically **4.5**.</p>
+        <div class="control-row">
+            <button id="btnApplyGrid">Apply Changes</button>
+            <button onclick="closeModal('gridModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="paletteModal" class="modal">
+    <div class="modal-content" style="width: 550px;">
+        <div class="modal-header">Palette Manager</div>
+        <p style="font-size: 12px; margin-top:0;">
+            1. Drag or Click from <b>Master</b> to add to Active.<br>
+            2. <b>Left Click</b> Active to Select for painting.<br>
+            3. <b>Right Click</b> Active to Remove.
+        </p>
+
+        <label>Active Palette (In Use):</label>
+        <div id="activePaletteContainer" class="swatch-container" style="background:#eef;"></div>
+        
+        <div style="margin-bottom:15px; display:flex; gap:10px;">
+            <button id="btnSavePaletteJSON">💾 Save Active Palette</button>
+            <button id="btnLoadPaletteJSON">📂 Load Active Palette</button>
+        </div>
+
+        <label>Master Palette (Library):</label>
+        <div id="masterPaletteContainer" class="swatch-container"></div>
+        
+        <div class="control-row">
+            <button onclick="closeModal('paletteModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="digitizeModal" class="modal">
+    <div class="modal-content" style="width: 350px;">
+        <div class="modal-header">Digitizing Image Settings</div>
+        
+        <button id="btnAutoDigitize" style="width:100%; background-color:#ffeb3b; padding:10px; font-weight:bold; margin-bottom:15px; border:1px solid #d4c028;">
+            ⚡ Auto-Digitize to Grid
+        </button>
+        <div style="font-size:11px; color:#666; margin-bottom:15px; text-align:center;">
+            Automatically fills grid cells with closest color from Active Palette.
+        </div>
+
+        <div class="form-group">
+            <label>Image Opacity:</label>
+            <input type="range" id="inpOpacity" min="0" max="100" value="50">
+            <span id="lblOpacity" style="width:30px; text-align:right;">50%</span>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        
+        <div style="font-weight:bold; margin-bottom:10px;">Position & Scale</div>
+        
+        <div class="form-group">
+            <label>Scale (%):</label>
+            <input type="number" id="inpImgScale" step="1">
+        </div>
+        <div class="form-group">
+            <label>X Offset (px):</label>
+            <input type="number" id="inpImgX" step="10">
+        </div>
+        <div class="form-group">
+            <label>Y Offset (px):</label>
+            <input type="number" id="inpImgY" step="10">
+        </div>
+
+        <div class="control-row">
+            <button id="btnImgFitWidth">Fit Width</button>
+            <button id="btnImgFitHeight">Fit Height</button>
+        </div>
+        <div class="control-row">
+            <button id="btnImgReset">Reset Pos/Fit</button>
+            <button onclick="closeModal('digitizeModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="fileInputXML" accept=".xml" style="display:none;">
+<input type="file" id="fileInputJSON" accept=".json" style="display:none;">
+<input type="file" id="fileInputImg" accept="image/*" style="display:none;">
+
+<script>
+/* =========================================
+   1. CONFIGURATION & STATE
+   ========================================= */
+
+// Master Palette
+const MASTER_PALETTE_CSV = `
+#000000,Black
+#FFFFFF,White
+#FF0000,Red
+#00FF00,Lime
+#0000FF,Blue
+#FFFF00,Yellow
+#00FFFF,Cyan
+#FF00FF,Magenta
+#C0C0C0,Silver
+#808080,Gray
+#800000,Maroon
+#800000,Dark Red
+#008000,Green
+#800080,Purple
+#008080,Teal
+#000080,Navy
+#FFA500,Orange
+#A52A2A,Brown
+#FA8072,Salmon
+#FFD700,Gold
+#4B0082,Indigo
+#F5F5DC,Beige
+#D2B48C,Tan
+`;
+
+function parseMasterPalette() {
+    return MASTER_PALETTE_CSV.trim().split('\n').map(line => {
+        const [hex, name] = line.split(',');
+        return { hex: hex.trim(), name: name.trim() };
+    });
+}
+
+const masterPalette = parseMasterPalette();
+
+// Application State
+const appState = {
+    // Default: 32 wide (4 inches @ 8 WPI)
+    cols: 32,
+    rows: 126, 
+    ratio: 4.5, // 9/2 ratio default
+    cellBaseWidth: 20, // pixels on screen (logical size)
+    zoom: 1.0,
+    
+    gridData: [], 
+    activePalette: [], 
+    selectedColorIndex: 0, 
+    
+    // State for grid transparency toggle
+    gridOpacity: 1.0, 
+    
+    trace: {
+        src: null,
+        visible: true,
+        opacity: 0.5, // Background image opacity
+        x: 0,
+        y: 0,
+        width: 0,  
+        height: 0, 
+        naturalWidth: 0,
+        naturalHeight: 0,
+        imageRatio: 1 
+    },
+
+    history: [],
+    historyStep: -1,
+    isDrawing: false
+};
+
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d');
+const wrapper = document.getElementById('canvasWrapper');
+const tracingImg = document.getElementById('tracingLayer');
+
+/* =========================================
+   2. INITIALIZATION
+   ========================================= */
+
+function init() {
+    appState.activePalette = [ masterPalette[0], masterPalette[1] ];
+    appState.selectedColorIndex = 0; 
+    updateCurrentColorDisplay();
+
+    resizeGridData(appState.rows, appState.cols);
+    updateCanvasDimensions();
+    saveHistory(); 
+    
+    tracingImg.style.display = 'none';
+    canvas.style.opacity = appState.gridOpacity; 
+}
+
+function resizeGridData(newRows, newCols) {
+    const newData = [];
+    for (let r = 0; r < newRows; r++) {
+        const row = [];
+        for (let c = 0; c < newCols; c++) {
+            if (appState.gridData[r] && appState.gridData[r][c] !== undefined) {
+                row.push(appState.gridData[r][c]);
+            } else {
+                row.push(-1); 
+            }
+        }
+        newData.push(row);
+    }
+    appState.gridData = newData;
+    appState.rows = newRows;
+    appState.cols = newCols;
+}
+
+/* =========================================
+   3. RENDERING & LAYOUT
+   ========================================= */
+
+// Calculates the logical size of the grid container (what the tracing image fits into)
+function getGridLogicDimensions() {
+    const cellW = appState.cellBaseWidth;
+    const cellH = cellW / appState.ratio;
+    return {
+        width: appState.cols * cellW,
+        height: appState.rows * cellH
+    };
+}
+
+function updateCanvasDimensions() {
+    const cellW = appState.cellBaseWidth * appState.zoom;
+    const cellH = cellW / appState.ratio; 
+
+    const totalW = appState.cols * cellW;
+    const totalH = appState.rows * cellH;
+
+    canvas.width = totalW;
+    canvas.height = totalH;
+    wrapper.style.width = `${totalW}px`;
+    wrapper.style.height = `${totalH}px`;
+
+    updateTracingVisuals();
+    drawGrid();
+    document.getElementById('zoomLabel').textContent = Math.round(appState.zoom * 100) + '%';
+}
+
+function updateTracingVisuals() {
+    if (!appState.trace.src || !appState.trace.visible) {
+        tracingImg.style.display = 'none';
+        return;
+    }
+
+    tracingImg.style.display = 'block';
+    // Image opacity is controlled by the modal setting
+    tracingImg.style.opacity = appState.trace.opacity; 
+    
+    const displayW = appState.trace.width * appState.zoom;
+    const displayH = appState.trace.height * appState.zoom;
+    const displayX = appState.trace.x * appState.zoom;
+    const displayY = appState.trace.y * appState.zoom;
+
+    tracingImg.style.width = `${displayW}px`;
+    tracingImg.style.height = `${displayH}px`;
+    tracingImg.style.left = `${displayX}px`;
+    tracingImg.style.top = `${displayY}px`;
+}
+
+function drawGrid() {
+    const cellW = appState.cellBaseWidth * appState.zoom;
+    const cellH = cellW / appState.ratio;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let r = 0; r < appState.rows; r++) {
+        for (let c = 0; c < appState.cols; c++) {
+            const colorIndex = appState.gridData[r][c];
+            
+            if (colorIndex > -1 && appState.activePalette[colorIndex]) {
+                ctx.fillStyle = appState.activePalette[colorIndex].hex;
+                ctx.fillRect(c * cellW, r * cellH, cellW, cellH);
+            }
+
+            // Grid Lines
+            ctx.strokeStyle = "rgba(0,0,0,0.1)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(c * cellW, r * cellH, cellW, cellH);
+        }
+    }
+}
+
+/* =========================================
+   4. DIGITIZING IMAGE & AUTO-DIGITIZATION
+   ========================================= */
+
+// Toggle Visibility (Now toggles GRID opacity)
+document.getElementById('btnDigitizeToggle').addEventListener('click', () => {
+    // Toggle between opaque (1.0) and semi-transparent (0.5)
+    appState.gridOpacity = appState.gridOpacity === 1.0 ? 0.5 : 1.0; 
+    canvas.style.opacity = appState.gridOpacity;
+    
+    // Update button text/title if needed for clarity
+    document.getElementById('btnDigitizeToggle').title = appState.gridOpacity === 1.0 ? 'Grid Opaque (Click to see image)' : 'Grid Transparent (Click for solid view)';
+});
+
+document.getElementById('btnDigitizeRead').addEventListener('click', () => {
+    document.getElementById('fileInputImg').click();
+});
+
+function fitImageToGrid() {
+    if (!appState.trace.naturalWidth || !appState.trace.naturalHeight) return;
+
+    const gridLogic = getGridLogicDimensions();
+    const imageAR = appState.trace.imageRatio; // W/H
+    const gridAR = gridLogic.width / gridLogic.height;
+
+    let newW, newH;
+
+    // Determine Fit (Fit within the bounds of the grid)
+    if (imageAR > gridAR) {
+        // Image is wider than the grid area ratio: Fit to width
+        newW = gridLogic.width;
+        newH = newW / imageAR;
+    } else {
+        // Image is taller than the grid area ratio: Fit to height
+        newH = gridLogic.height;
+        newW = newH * imageAR;
+    }
+
+    appState.trace.width = newW;
+    appState.trace.height = newH;
+    
+    // Center the image
+    appState.trace.x = (gridLogic.width - newW) / 2;
+    appState.trace.y = (gridLogic.height - newH) / 2;
+
+    syncDigitizeModalValues(); 
+    updateTracingVisuals();
+}
+
+document.getElementById('fileInputImg').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const img = new Image();
+            img.onload = () => {
+                appState.trace.src = img.src;
+                appState.trace.visible = true;
+                appState.trace.naturalWidth = img.width;
+                appState.trace.naturalHeight = img.height;
+                appState.trace.imageRatio = img.width / img.height;
+                
+                tracingImg.src = img.src;
+                fitImageToGrid(); 
+            };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+});
+
+// AUTO-DIGITIZE LOGIC
+document.getElementById('btnAutoDigitize').addEventListener('click', () => {
+    if (!appState.trace.src) return;
+    if(appState.activePalette.length === 0) {
+        alert("Please add colors to your Active Palette first.");
+        return;
+    }
+    if(!confirm("This will overwrite your current grid with a digitized version of the image. Continue?")) return;
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = appState.trace.naturalWidth;
+    offCanvas.height = appState.trace.naturalHeight;
+    const offCtx = offCanvas.getContext('2d');
+    
+    const imgObj = new Image();
+    imgObj.src = appState.trace.src;
+    imgObj.onload = () => {
+        offCtx.drawImage(imgObj, 0, 0);
+        
+        const paletteRGB = appState.activePalette.map(c => hexToRgb(c.hex));
+
+        const cellW = appState.cellBaseWidth;
+        const cellH = cellW / appState.ratio;
+        
+        const scaleX = appState.trace.naturalWidth / appState.trace.width;
+        const scaleY = appState.trace.naturalHeight / appState.trace.height;
+
+        for(let r = 0; r < appState.rows; r++) {
+            for(let c = 0; c < appState.cols; c++) {
+                const cellLogicX = c * cellW;
+                const cellLogicY = r * cellH;
+                
+                const relX = cellLogicX - appState.trace.x;
+                const relY = cellLogicY - appState.trace.y;
+                
+                const imgX = Math.floor(relX * scaleX);
+                const imgY = Math.floor(relY * scaleY);
+                const imgW = Math.max(1, Math.floor(cellW * scaleX));
+                const imgH = Math.max(1, Math.floor(cellH * scaleY));
+
+                if (imgX >= 0 && imgY >= 0 && imgX + imgW <= appState.trace.naturalWidth && imgY + imgH <= appState.trace.naturalHeight) {
+                    
+                    const pixelData = offCtx.getImageData(imgX, imgY, imgW, imgH).data;
+                    let rTotal = 0, gTotal = 0, bTotal = 0, count = 0;
+                    
+                    const step = 1; 
+                    for (let i = 0; i < pixelData.length; i += 4 * step) {
+                        rTotal += pixelData[i];
+                        gTotal += pixelData[i+1];
+                        bTotal += pixelData[i+2];
+                        count++;
+                    }
+                    
+                    if(count > 0) {
+                        const avgR = rTotal / count;
+                        const avgG = gTotal / count;
+                        const avgB = bTotal / count;
+                        
+                        let minDist = Infinity;
+                        let bestIdx = -1;
+                        
+                        for(let p = 0; p < paletteRGB.length; p++) {
+                            const pr = paletteRGB[p].r;
+                            const pg = paletteRGB[p].g;
+                            const pb = paletteRGB[p].b;
+                            const dist = Math.sqrt((avgR-pr)**2 + (avgG-pg)**2 + (avgB-pb)**2);
+                            if(dist < minDist) {
+                                minDist = dist;
+                                bestIdx = p;
+                            }
+                        }
+                        
+                        appState.gridData[r][c] = bestIdx;
+                    }
+                } else {
+                    // Cell is off the image
+                }
+            }
+        }
+        
+        drawGrid();
+        saveHistory();
+        closeModal('digitizeModal');
+        alert("Digitization Complete!");
+    };
+});
+
+function hexToRgb(hex) {
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+        return r + r + g + g + b + b;
+    });
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+}
+
+
+// Settings Menu Logic
+const digitizeModal = document.getElementById('digitizeModal');
+
+document.getElementById('btnDigitizeSettings').addEventListener('click', () => {
+    if (!appState.trace.src) {
+        alert("Please load an image first.");
+        return;
+    }
+    syncDigitizeModalValues();
+    digitizeModal.style.display = 'block';
+});
+
+function syncDigitizeModalValues() {
+    document.getElementById('inpOpacity').value = appState.trace.opacity * 100;
+    document.getElementById('lblOpacity').textContent = Math.round(appState.trace.opacity * 100) + '%';
+    document.getElementById('inpImgX').value = Math.round(appState.trace.x);
+    document.getElementById('inpImgY').value = Math.round(appState.trace.y);
+    const currentScale = (appState.trace.width / appState.trace.naturalWidth) * 100;
+    document.getElementById('inpImgScale').value = Math.round(currentScale);
+}
+
+// Button Handlers for Image Movement/Scale
+document.getElementById('inpOpacity').addEventListener('input', (e) => {
+    const val = e.target.value;
+    document.getElementById('lblOpacity').textContent = val + '%';
+    appState.trace.opacity = val / 100;
+    updateTracingVisuals();
+});
+document.getElementById('inpImgX').addEventListener('change', (e) => {
+    appState.trace.x = parseInt(e.target.value) || 0;
+    updateTracingVisuals();
+});
+document.getElementById('inpImgY').addEventListener('change', (e) => {
+    appState.trace.y = parseInt(e.target.value) || 0;
+    updateTracingVisuals();
+});
+document.getElementById('inpImgScale').addEventListener('change', (e) => {
+    const scale = parseFloat(e.target.value) / 100;
+    if(scale > 0) {
+        appState.trace.width = appState.trace.naturalWidth * scale;
+        appState.trace.height = appState.trace.naturalHeight * scale;
+        updateTracingVisuals();
+    }
+});
+document.getElementById('btnImgFitWidth').addEventListener('click', () => {
+    const gridW = getGridLogicDimensions().width;
+    appState.trace.width = gridW;
+    appState.trace.height = gridW / appState.trace.imageRatio;
+    appState.trace.x = 0; 
+    appState.trace.y = (getGridLogicDimensions().height - appState.trace.height) / 2;
+    syncDigitizeModalValues(); updateTracingVisuals();
+});
+document.getElementById('btnImgFitHeight').addEventListener('click', () => {
+    const gridH = getGridLogicDimensions().height;
+    appState.trace.height = gridH;
+    appState.trace.width = gridH * appState.trace.imageRatio;
+    appState.trace.y = 0; 
+    appState.trace.x = (getGridLogicDimensions().width - appState.trace.width) / 2;
+    syncDigitizeModalValues(); updateTracingVisuals();
+});
+document.getElementById('btnImgReset').addEventListener('click', () => {
+    fitImageToGrid();
+});
+
+/* =========================================
+   5. PAINTING INTERACTION
+   ========================================= */
+
+function getCellCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const cellW = appState.cellBaseWidth * appState.zoom;
+    const cellH = cellW / appState.ratio;
+
+    const c = Math.floor(x / cellW);
+    const r = Math.floor(y / cellH);
+
+    return { r, c };
+}
+
+function paint(r, c) {
+    if (r >= 0 && r < appState.rows && c >= 0 && c < appState.cols) {
+        if (appState.gridData[r][c] !== appState.selectedColorIndex) {
+            appState.gridData[r][c] = appState.selectedColorIndex;
+            drawGrid(); 
+            return true;
+        }
+    }
+    return false;
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if(e.button === 2) return; 
+    appState.isDrawing = true;
+    const { r, c } = getCellCoords(e);
+    paint(r, c);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (appState.isDrawing) {
+        const { r, c } = getCellCoords(e);
+        paint(r, c);
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    if (appState.isDrawing) {
+        appState.isDrawing = false;
+        saveHistory();
+    }
+});
+
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const { r, c } = getCellCoords(e);
+    if (r >= 0 && r < appState.rows && c >= 0 && c < appState.cols) {
+        const idx = appState.gridData[r][c];
+        if (idx > -1) {
+            appState.selectedColorIndex = idx;
+            updateCurrentColorDisplay();
+        }
+    }
+});
+
+
+/* =========================================
+   6. HISTORY
+   ========================================= */
+
+function saveHistory() {
+    if (appState.historyStep < appState.history.length - 1) {
+        appState.history = appState.history.slice(0, appState.historyStep + 1);
+    }
+    const cloneData = appState.gridData.map(row => [...row]);
+    appState.history.push({
+        gridData: cloneData,
+        rows: appState.rows,
+        cols: appState.cols,
+        trace: JSON.parse(JSON.stringify(appState.trace))
+    });
+    appState.historyStep++;
+    if(appState.history.length > 30) {
+        appState.history.shift();
+        appState.historyStep--;
+    }
+}
+
+function restoreHistory(step) {
+    const state = appState.history[step];
+    appState.gridData = state.gridData.map(row => [...row]);
+    appState.rows = state.rows;
+    appState.cols = state.cols;
+    appState.trace = JSON.parse(JSON.stringify(state.trace));
+    if (appState.trace.src) tracingImg.src = appState.trace.src;
+    else tracingImg.src = "";
+    
+    updateCanvasDimensions();
+}
+
+document.getElementById('btnUndo').addEventListener('click', () => {
+    if (appState.historyStep > 0) {
+        appState.historyStep--;
+        restoreHistory(appState.historyStep);
+    }
+});
+
+document.getElementById('btnRedo').addEventListener('click', () => {
+    if (appState.historyStep < appState.history.length - 1) {
+        appState.historyStep++;
+        restoreHistory(appState.historyStep);
+    }
+});
+
+document.getElementById('btnClear').addEventListener('click', () => {
+    if(confirm("Clear the entire grid?")) {
+        for(let r=0; r<appState.rows; r++) {
+            for(let c=0; c<appState.cols; c++) {
+                appState.gridData[r][c] = -1;
+            }
+        }
+        drawGrid();
+        saveHistory();
+    }
+});
+
+
+/* =========================================
+   7. DIALOGS & FILE I/O
+   ========================================= */
+
+const gridModal = document.getElementById('gridModal');
+document.getElementById('btnGridSettings').addEventListener('click', () => {
+    document.getElementById('inpRows').value = appState.rows;
+    document.getElementById('inpCols').value = appState.cols;
+    document.getElementById('inpRatio').value = appState.ratio;
+    gridModal.style.display = 'block';
+});
+document.getElementById('btnApplyGrid').addEventListener('click', () => {
+    const r = parseInt(document.getElementById('inpRows').value);
+    const c = parseInt(document.getElementById('inpCols').value);
+    const ratio = parseFloat(document.getElementById('inpRatio').value);
+    if (r > 0 && c > 0 && ratio > 0) {
+        appState.ratio = ratio;
+        resizeGridData(r, c);
+        
+        if (appState.trace.src) {
+            fitImageToGrid();
+        }
+
+        updateCanvasDimensions();
+        saveHistory();
+        closeModal('gridModal');
+    }
+});
+
+const paletteModal = document.getElementById('paletteModal');
+document.getElementById('btnPalette').addEventListener('click', () => {
+    renderPaletteModal();
+    paletteModal.style.display = 'block';
+});
+
+function updateCurrentColorDisplay() {
+    const div = document.getElementById('current-color-display');
+    const color = appState.activePalette[appState.selectedColorIndex];
+    if (color) {
+        div.style.backgroundColor = color.hex;
+        div.title = color.name;
+    } else {
+        div.style.backgroundColor = 'transparent';
+    }
+}
+
+function renderPaletteModal() {
+    const activeC = document.getElementById('activePaletteContainer');
+    const masterC = document.getElementById('masterPaletteContainer');
+    activeC.innerHTML = '';
+    masterC.innerHTML = '';
+
+    appState.activePalette.forEach((color, idx) => {
+        const d = document.createElement('div');
+        d.className = 'color-swatch';
+        if (idx === appState.selectedColorIndex) d.classList.add('selected');
+        d.style.backgroundColor = color.hex;
+        d.title = `${color.name} (Click to select, Right-click to remove)`;
+        
+        d.addEventListener('click', () => {
+            appState.selectedColorIndex = idx;
+            renderPaletteModal();
+            updateCurrentColorDisplay();
+        });
+        d.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (appState.activePalette.length > 1) {
+                appState.activePalette.splice(idx, 1);
+                if (appState.selectedColorIndex >= appState.activePalette.length) {
+                    appState.selectedColorIndex = appState.activePalette.length - 1;
+                }
+                updateCurrentColorDisplay();
+                renderPaletteModal();
+            }
+        });
+        activeC.appendChild(d);
+    });
+
+    masterPalette.forEach(color => {
+        const d = document.createElement('div');
+        d.className = 'color-swatch';
+        d.style.backgroundColor = color.hex;
+        d.title = `Add ${color.name}`;
+        d.addEventListener('click', () => {
+            if (!appState.activePalette.find(c => c.hex === color.hex)) {
+                appState.activePalette.push(color);
+                renderPaletteModal();
+            }
+        });
+        masterC.appendChild(d);
+    });
+}
+
+document.getElementById('btnSavePaletteJSON').addEventListener('click', () => {
+    downloadFile(JSON.stringify(appState.activePalette, null, 2), 'palette.json', 'application/json');
+});
+document.getElementById('btnLoadPaletteJSON').addEventListener('click', () => {
+    document.getElementById('fileInputJSON').click();
+});
+document.getElementById('fileInputJSON').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        try {
+            const arr = JSON.parse(evt.target.result);
+            if (Array.isArray(arr) && arr[0].hex) {
+                appState.activePalette = arr;
+                appState.selectedColorIndex = 0;
+                renderPaletteModal();
+                updateCurrentColorDisplay();
+                alert("Palette loaded.");
+            }
+        } catch(err) {}
+    };
+    reader.readAsText(file);
+    e.target.value='';
+});
+
+document.getElementById('btnSave').addEventListener('click', () => {
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<PatternGridData>\n`;
+    xml += `  <GridSettings>\n    <Rows>${appState.rows}</Rows>\n    <Columns>${appState.cols}</Columns>\n    <CellRatio>${appState.ratio}</CellRatio>\n  </GridSettings>\n`;
+    xml += `  <Palette>\n`;
+    appState.activePalette.forEach((c, i) => {
+        xml += `    <Color index="${i}" hex="${c.hex}" name="${c.name}"/>\n`;
+    });
+    xml += `  </Palette>\n  <Data>\n`;
+    for(let r=0; r<appState.rows; r++) {
+        xml += `    <Row index="${r}">${appState.gridData[r].join(',')}</Row>\n`;
+    }
+    xml += `  </Data>\n</PatternGridData>`;
+    downloadFile(xml, 'pattern.xml', 'text/xml');
+});
+
+document.getElementById('btnOpen').addEventListener('click', () => {
+    document.getElementById('fileInputXML').click();
+});
+
+document.getElementById('fileInputXML').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(evt.target.result, "text/xml");
+        try {
+            appState.rows = parseInt(xmlDoc.getElementsByTagName("Rows")[0].textContent);
+            appState.cols = parseInt(xmlDoc.getElementsByTagName("Columns")[0].textContent);
+            appState.ratio = parseFloat(xmlDoc.getElementsByTagName("CellRatio")[0].textContent);
+            
+            const colorNodes = xmlDoc.getElementsByTagName("Color");
+            const newPalette = [];
+            for(let i=0; i<colorNodes.length; i++) newPalette.push({ hex: colorNodes[i].getAttribute("hex"), name: colorNodes[i].getAttribute("name") });
+            appState.activePalette = newPalette;
+            
+            const rowNodes = xmlDoc.getElementsByTagName("Row");
+            const newData = [];
+            for(let i=0; i<rowNodes.length; i++) newData.push(rowNodes[i].textContent.split(',').map(Number));
+            appState.gridData = newData;
+
+            updateCanvasDimensions();
+            saveHistory();
+            alert("Pattern loaded.");
+        } catch (err) { alert("Error parsing XML."); }
+    };
+    reader.readAsText(file);
+    e.target.value='';
+});
+
+document.getElementById('btnZoomIn').addEventListener('click', () => {
+    appState.zoom += 0.25;
+    updateCanvasDimensions();
+});
+document.getElementById('btnZoomOut').addEventListener('click', () => {
+    if (appState.zoom > 0.25) {
+        appState.zoom -= 0.25;
+        updateCanvasDimensions();
+    }
+});
+
+function downloadFile(content, fileName, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+window.onclick = function(event) { if (event.target.classList.contains('modal')) event.target.style.display = "none"; }
+
+init();
+</script>
+</body>
+</html>
