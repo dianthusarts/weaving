@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weaving Pattern Grid Tool (Auto-Digitization)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         /* --- Layout & Basic Reset --- */
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background-color: #333; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Figtree', sans-serif; overflow: hidden; background-color: #333; }
         
         #patternGridContainer {
             display: flex;
@@ -16,43 +17,92 @@
             background-color: #fff;
         }
 
-        /* --- Menu Bar --- */
+        /* --- Menu Bar Styles --- */
         #patternGridMenu {
-            height: 46px;
+            height: 30px; 
             background-color: #f4f4f4;
             border-bottom: 1px solid #ccc;
             display: flex;
             align-items: center;
-            padding: 0 10px;
+            padding: 0 5px;
             flex-shrink: 0;
-            gap: 6px;
             user-select: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            position: relative;
+            z-index: 100;
+            font-size: 14px;
         }
 
-        button {
-            padding: 6px 10px;
+        .menu-item {
+            position: relative;
+            padding: 0 8px;
+            line-height: 30px;
             cursor: pointer;
-            border: 1px solid #aaa;
-            background: linear-gradient(to bottom, #fff, #f0f0f0);
-            border-radius: 3px;
-            font-size: 13px;
-            color: #333;
         }
-        button:hover { background: #e8e8e8; border-color: #888; }
-        button:active { background: #ccc; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
+        .menu-item:hover {
+            background-color: #ddd;
+        }
         
-        .separator { width: 1px; height: 24px; background: #ccc; margin: 0 4px; }
+        .dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #fff;
+            border: 1px solid #aaa;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            min-width: 150px;
+            z-index: 101;
+        }
+        .dropdown-item {
+            padding: 5px 10px;
+            white-space: nowrap;
+            cursor: pointer;
+            line-height: 1.5;
+            font-size: 13px;
+        }
+        .dropdown-item:hover {
+            background-color: #0078d4;
+            color: white;
+        }
+        .dropdown-separator {
+            height: 1px;
+            background-color: #eee;
+            margin: 4px 0;
+        }
 
-        /* --- Tool Area --- */
+        /* --- Tool Bar (Top Row) --- */
+        #toolbar {
+            height: 36px;
+            background-color: #fcfcfc;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        
+        /* --- Tool Area (Main Area) --- */
         #patternGridTool {
             flex-grow: 1;
             position: relative; 
-            overflow: auto;     
-            background-color: #888; 
+            overflow: hidden;     
+            background-color: #555; 
             display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
+        }
+        
+        /* --- Canvas Area (Left Side) --- */
+        #canvasArea {
+            flex-grow: 1;
+            overflow: auto; 
+            position: relative;
+            display: flex;
+            align-items: flex-start; 
+            justify-content: center;
+            padding: 20px;
+            background-color: #888; 
         }
 
         #canvasWrapper {
@@ -62,24 +112,149 @@
             background-color: white; 
             transform-origin: 0 0;
         }
+        
+        /* New Ruler Canvas for on-screen rulers */
+        #rulerCanvas {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 3; 
+            pointer-events: none;
+        }
 
         #tracingLayer {
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 1;
+            z-index: 4; /* Higher than ruler canvas */
             pointer-events: none; 
             transform-origin: 0 0;
+            /* CRITICAL FIX FOR INITIAL DISPLAY: Ensure it can be visible */
+            display: none; 
         }
 
         #gridCanvas {
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 2;
+            z-index: 5; /* Highest z-index for interaction */
             cursor: crosshair;
-            /* Added transition for smooth opacity change */
             transition: opacity 0.2s ease-in-out; 
+        }
+
+        /* --- Right Control Panel --- */
+        #controlPanel {
+            width: 180px;
+            flex-shrink: 0;
+            background-color: #f4f4f4;
+            border-left: 1px solid #ccc;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto; 
+        }
+
+        .panel-header {
+            font-weight: bold; 
+            font-size: 14px; 
+            text-align: center; 
+            color:#555;
+        }
+        
+        .panel-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: space-between;
+        }
+        .panel-tools button {
+            width: 48%; /* Default button width */
+            padding: 8px 0;
+            font-size: 13px;
+        }
+        /* Adjusted width for 4 buttons per row to keep spacing clean */
+        .panel-tools.four-wide button {
+            width: 48%; /* Keep 48% to allow two buttons to fit neatly on 180px width */
+        }
+        /* Full width button for single items */
+        .panel-tools.full-width button {
+            width: 100%;
+        }
+        
+        /* --- Shared Button Styles --- */
+        #toolbar button, .panel-tools button {
+            cursor: pointer;
+            border: 1px solid #aaa;
+            background: linear-gradient(to bottom, #fff, #f0f0f0);
+            border-radius: 3px;
+            color: #333;
+        }
+        #toolbar button:hover, .panel-tools button:hover { background: #e8e8e8; border-color: #888; }
+        #toolbar button:active, .panel-tools button:active { background: #ccc; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
+        
+        /* HIGHLIGHTING FOR ACTIVE TOOL */
+        .tool-selected {
+            background: #ffeb3b !important; 
+            border-color: #d4c028 !important;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1) !important;
+        }
+        
+        .separator { width: 1px; height: 24px; background: #ccc; margin: 0 4px; }
+        .panel-separator { border-top: 1px solid #ddd; margin: 10px 0; }
+
+        /* --- Color Display and Palette Swatches (Toolbar) --- */
+        #current-color-display {
+            width: 28px; height: 28px; border: 1px solid #666;
+            display: inline-block; vertical-align: middle;
+            margin-right: 5px; box-shadow: inset 0 0 2px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        #toolbar-palette {
+            display: flex;
+            gap: 4px;
+            margin-left: 10px;
+            flex-grow: 1; 
+        }
+
+        .toolbar-swatch {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #999;
+            cursor: pointer;
+            box-sizing: border-box;
+            align-self: center;
+        }
+        .toolbar-swatch.selected {
+            border: 2px solid #000;
+            transform: scale(1.1);
+        }
+        
+        /* --- Panel Slider/Controls --- */
+        .panel-slider-group {
+            font-size: 12px;
+            padding: 5px 0;
+            border: 1px solid #eee;
+            background-color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .panel-slider-group label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .panel-slider-group input[type="range"] {
+            width: 100%;
+            margin: 5px 0 0;
+        }
+        
+        /* --- Dimensions Label Positioning --- */
+        #dimensionLabel {
+            font-weight: 600;
+            flex-shrink: 0;
         }
 
         /* --- Modals --- */
@@ -112,8 +287,8 @@
         
         .control-row { display: flex; gap: 10px; margin-top: 10px; }
         .control-row button { flex: 1; }
-
-        /* --- Palette Styles --- */
+        
+        /* --- Palette Styles (in modal) --- */
         .swatch-container {
             display: flex; flex-wrap: wrap; gap: 4px; padding: 10px;
             border: 1px solid #ccc; min-height: 50px; margin-bottom: 10px;
@@ -126,48 +301,95 @@
         .color-swatch:hover { border-color: black; transform: scale(1.2); z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .color-swatch.selected { border: 2px solid #000; box-shadow: 0 0 0 1px white inset; }
         
-        #current-color-display {
-            width: 28px; height: 28px; border: 1px solid #666;
-            display: inline-block; vertical-align: middle;
-            margin-right: 5px; box-shadow: inset 0 0 2px rgba(0,0,0,0.3);
-        }
-
     </style>
 </head>
 <body>
 
 <div id="patternGridContainer">
     <div id="patternGridMenu">
-        <button id="btnOpen">📂 Open</button>
-        <button id="btnSave">💾 Save</button>
-        <div class="separator"></div>
-
-        <button id="btnUndo">↩️ Undo</button>
-        <button id="btnRedo">↪️ Redo</button>
-        <button id="btnClear">❌ Clear</button>
-        <div class="separator"></div>
-
-        <button id="btnGridSettings">📐 Grid Setup</button>
-        <div class="separator"></div>
+        <div class="menu-item" id="fileMenu">
+            File
+            <div class="dropdown">
+                <div class="dropdown-item" id="menuOpen">📂 Open Pattern...</div>
+                <div class="dropdown-item" id="menuSave">💾 Save Pattern...</div>
+                <div class="dropdown-separator"></div>
+                <div class="dropdown-item" id="menuExportPNG">🖼️ Export PNG</div>
+            </div>
+        </div>
+        <div class="menu-item" id="editMenu">
+            Edit
+            <div class="dropdown">
+                <div class="dropdown-item" id="menuUndo">↩️ Undo (Ctrl+Z)</div>
+                <div class="dropdown-item" id="menuRedo">↪️ Redo (Ctrl+Y)</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toolbar">
+        <span id="dimensionLabel">4.0" W x 7.0" H</span>
         
         <div id="current-color-display" style="background-color: #000;" title="Current Paint Color"></div>
-        <button id="btnPalette">🎨 Palette</button>
-        <div class="separator"></div>
-
-        <button id="btnDigitizeToggle" title="Toggle Grid Visibility">👁️ Toggle View</button>
-        <button id="btnDigitizeRead">📁 Load Img</button>
-        <button id="btnDigitizeSettings" style="background: #fffacd;">🍌 Image Settings</button>
+        
         <div class="separator"></div>
         
-        <button id="btnZoomOut">➖</button>
-        <span id="zoomLabel" style="width: 40px; text-align: center; font-size: 12px;">100%</span>
-        <button id="btnZoomIn">➕</button>
+        <div id="toolbar-palette">
+            </div>
+        
+        <div class="separator"></div>
+
+        <span id="zoomLabel" style="width: 40px; text-align: center;">100%</span>
+        
+        <div class="separator"></div>
+        
+        <span id="timestamp" style="font-size: 11px; margin-left: auto; color: #555;"></span>
     </div>
 
     <div id="patternGridTool">
-        <div id="canvasWrapper">
-            <img id="tracingLayer" alt="" src="">
-            <canvas id="gridCanvas"></canvas>
+        <div id="canvasArea">
+            <div id="canvasWrapper">
+                <canvas id="rulerCanvas"></canvas>
+                <img id="tracingLayer" alt="" src="">
+                <canvas id="gridCanvas"></canvas>
+            </div>
+        </div>
+
+        <div id="controlPanel">
+            
+            <div class="panel-header">Configuration</div>
+            <div class="panel-tools">
+                <button id="menuGridSettings" title="Set Weave Dimensions and Density">📐 Grid Setup</button>
+                <button id="menuPalette" title="Manage Color Palette">🎨 Palette</button>
+            </div>
+            <div class="panel-separator"></div>
+
+            <div class="panel-header">Drawing Tools</div>
+            <div class="panel-tools four-wide">
+                <button id="toolPen" title="Pen (Click and drag to draw or toggle)">✍️ Pen</button>
+                <button id="toolRectangle" title="Drag to draw a filled rectangle">⬛ Rect</button>
+                <button id="toolFill" title="Fill (Click a cell to flood fill)">🪣 Fill</button>
+                <button id="toolSwitch" title="Click a cell to globally replace its color">🔄 Swap</button> 
+            </div>
+
+            <div class="panel-separator"></div>
+            
+            <div class="panel-header">Image & Grid</div>
+            <div class="panel-tools four-wide">
+                <button id="btnLoadImage" title="Load a new image for tracing or digitizing">📁 Load</button>
+                <button id="btnDigitizePanel" title="Automatically convert the traced image into the grid pattern">✨ Digitize</button>
+                <button id="menuDigitizeSettings" title="Image Position and Scale Settings">↔️ Position/Scale</button>
+                <button id="menuClear" title="Clear all drawing from the grid">❌ Clear Grid</button>
+            </div>
+            
+            <div class="panel-separator"></div>
+
+            <div class="panel-slider-group">
+                <label title="0% = Grid Only, 100% = Image Only">
+                    <span>Opacity</span>
+                    <span id="lblOpacity" style="font-weight: normal;">50%</span>
+                </label>
+                <input type="range" id="inpOpacity" min="0" max="100" value="50">
+            </div>
+
         </div>
     </div>
 </div>
@@ -175,19 +397,42 @@
 <div id="gridModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">Grid Configuration</div>
+
         <div class="form-group">
-            <label>Warps (Columns/Width):</label>
-            <input type="number" id="inpCols" min="1" max="2000">
+            <label>Weave Width (inches):</label>
+            <input type="number" id="inpWidthInches" step="0.25" min="0.25">
         </div>
         <div class="form-group">
-            <label>Wefts (Rows/Height):</label>
-            <input type="number" id="inpRows" min="1" max="5000">
+            <label>Weave Height (inches):</label>
+            <input type="number" id="inpHeightInches" step="0.25" min="0.25" disabled title="This will be automatically calculated if an image is loaded">
+        </div>
+        <div style="border-top: 1px solid #eee; margin: 10px 0;"></div>
+
+        <div class="form-group">
+            <label>Sett (WPI):</label>
+            <input type="number" id="inpWPI" min="1">
         </div>
         <div class="form-group">
-            <label title="Width divided by Height of a single cell">Cell Ratio (W/H):</label>
-            <input type="number" id="inpRatio" step="0.1" min="0.1">
+            <label>Picks Per Inch (PPI):</label>
+            <input type="number" id="inpPPI" min="1">
         </div>
-        <p style="font-size:12px; color:#666;">Current Default: 4 Inches Wide (32 Warps @ 8 WPI) x 7 Inches Tall (126 Wefts).<br>For 9/2 weaving, Ratio is typically **4.5**.</p>
+
+        <div style="border-top: 1px solid #eee; margin: 10px 0;"></div>
+        
+        <p style="font-size:12px; color:#666; margin-bottom: 5px;">Calculated Grid:</p>
+        <div class="form-group" style="margin-bottom: 5px;">
+            <label style="font-weight: normal;">Warps (Columns/Width):</label>
+            <span id="lblCols">0</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 5px;">
+            <label style="font-weight: normal;">Picks (Rows/Height):</label>
+            <span id="lblRows">0</span>
+        </div>
+        <div class="form-group">
+            <label title="Width divided by Height of a single cell" style="font-weight: normal;">Cell Ratio (W/H):</label>
+            <span id="lblRatio">0</span>
+        </div>
+        
         <div class="control-row">
             <button id="btnApplyGrid">Apply Changes</button>
             <button onclick="closeModal('gridModal')">Cancel</button>
@@ -223,46 +468,32 @@
 
 <div id="digitizeModal" class="modal">
     <div class="modal-content" style="width: 350px;">
-        <div class="modal-header">Digitizing Image Settings</div>
-        
-        <button id="btnAutoDigitize" style="width:100%; background-color:#ffeb3b; padding:10px; font-weight:bold; margin-bottom:15px; border:1px solid #d4c028;">
-            ⚡ Auto-Digitize to Grid
-        </button>
-        <div style="font-size:11px; color:#666; margin-bottom:15px; text-align:center;">
-            Automatically fills grid cells with closest color from Active Palette.
-        </div>
-
-        <div class="form-group">
-            <label>Image Opacity:</label>
-            <input type="range" id="inpOpacity" min="0" max="100" value="50">
-            <span id="lblOpacity" style="width:30px; text-align:right;">50%</span>
-        </div>
-
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        <div class="modal-header">Image Position and Scale Settings</div>
         
         <div style="font-weight:bold; margin-bottom:10px;">Position & Scale</div>
         
         <div class="form-group">
             <label>Scale (%):</label>
-            <input type="number" id="inpImgScale" step="1">
+            <input type="number" id="inpImgScale" step="1" disabled>
         </div>
         <div class="form-group">
             <label>X Offset (px):</label>
-            <input type="number" id="inpImgX" step="10">
+            <input type="number" id="inpImgX" step="10" disabled>
         </div>
         <div class="form-group">
             <label>Y Offset (px):</label>
-            <input type="number" id="inpImgY" step="10">
+            <input type="number" id="inpImgY" step="10" disabled>
         </div>
 
         <div class="control-row">
-            <button id="btnImgFitWidth">Fit Width</button>
-            <button id="btnImgFitHeight">Fit Height</button>
+            <button id="btnImgFitWidth">Fit Width (Locked)</button>
+            <button id="btnImgFitHeight" disabled>Fit Height</button>
         </div>
         <div class="control-row">
             <button id="btnImgReset">Reset Pos/Fit</button>
             <button onclick="closeModal('digitizeModal')">Close</button>
         </div>
+        <p style="font-size:11px; margin-top:10px; color:#555;">Note: Position and Scale controls are disabled because the image is automatically locked to the grid's width and proportions upon load.</p>
     </div>
 </div>
 
@@ -271,68 +502,96 @@
 <input type="file" id="fileInputImg" accept="image/*" style="display:none;">
 
 <script>
+// --- START: Timestamp for Version Control ---
+const TIMESTAMP_STRING = '11/30/2025 6:18:38 PM EST'; 
+function updateTimestamp() {
+    document.getElementById('timestamp').textContent = TIMESTAMP_STRING;
+}
+// --- END: Timestamp for Version Control ---
+
 /* =========================================
    1. CONFIGURATION & STATE
    ========================================= */
 
-// Master Palette
+// Local Storage Key
+const LOCAL_STORAGE_KEY = 'weavingGridState';
+
+// Master Palette 
 const MASTER_PALETTE_CSV = `
-#000000,Black
-#FFFFFF,White
-#FF0000,Red
-#00FF00,Lime
-#0000FF,Blue
-#FFFF00,Yellow
-#00FFFF,Cyan
-#FF00FF,Magenta
-#C0C0C0,Silver
-#808080,Gray
-#800000,Maroon
-#800000,Dark Red
-#008000,Green
-#800080,Purple
-#008080,Teal
-#000080,Navy
-#FFA500,Orange
-#A52A2A,Brown
-#FA8072,Salmon
-#FFD700,Gold
-#4B0082,Indigo
-#F5F5DC,Beige
-#D2B48C,Tan
+marigold 1,#bf720e
+marigold 2,#c98c28
+marigold 3,#d2a347
+marigold 4,#d6ab5a
+marigold 5,#d0b177
+sapphire 1,#0f5a9a
+sapphire 2,#3477a8
+sapphire 3,#6295b5
+sapphire 4,#6b99a9
+sapphire 5,#6a90a0
+cinnamon 2,#833a23
+daffodil 1,#ffd000
+daffodil 3,#d9bf68
+daffodil 4,#f3f2c3
+cherry 1,#a3192e
+cherry 2,#9e1a2d
+cherry 5,#c78786
+cayenne 3,#bb5e59
+tangerine 1,#c0361a
+walnut 3,#7b5d5a
+black,#000000
+stone,#9d9787
+eggplant 1,#38234c
+violet 1,#4c3073
+indigo 4,#7f808b
+forest 1,#142c26
+meadow 1,#2f5d34
+meadow 2,#648760
+olive 2,#666535
+lime 1,#90ac44
+lime 3,#b2bc68
+white,#ffffff
 `;
 
 function parseMasterPalette() {
     return MASTER_PALETTE_CSV.trim().split('\n').map(line => {
-        const [hex, name] = line.split(',');
-        return { hex: hex.trim(), name: name.trim() };
+        const [name, hex] = line.split(',');
+        return { hex: hex.trim(), name: name.trim() }; 
     });
 }
 
 const masterPalette = parseMasterPalette();
 
-// Application State
-const appState = {
-    // Default: 32 wide (4 inches @ 8 WPI)
-    cols: 32,
-    rows: 126, 
-    ratio: 4.5, // 9/2 ratio default
-    cellBaseWidth: 20, // pixels on screen (logical size)
+// Default Application State
+const defaultAppState = {
+    // Weaving Dimensions (Source of Truth for Grid Size)
+    widthInches: 4,
+    heightInches: 7,
+    wpi: 8, // Warps Per Inch (WPI) is 8 (Sett)
+    ppi: 35, // Picks Per Inch (PPI) is 35
+
+    // Calculated Grid Properties - Initial calculated state
+    cols: 0, 
+    rows: 0,
+    ratio: 1, 
+
+    cellBaseWidth: 15, // Logical pixels for base cell width
     zoom: 1.0,
     
     gridData: [], 
     activePalette: [], 
     selectedColorIndex: 0, 
+    lastColorIndex: -1, 
     
-    // State for grid transparency toggle
-    gridOpacity: 1.0, 
+    // UI Label is "Opacity"
+    imageDominance: 50, // 0 to 100 
+    toolMode: 'pen', 
     
     trace: {
         src: null,
-        visible: true,
-        opacity: 0.5, // Background image opacity
-        x: 0,
-        y: 0,
+        visible: true, 
+        opacity: 0.5, 
+        x: 0, // X offset (relative to left edge of wrapper)
+        y: 0, // Y offset (relative to bottom edge of wrapper)
         width: 0,  
         height: 0, 
         naturalWidth: 0,
@@ -342,29 +601,187 @@ const appState = {
 
     history: [],
     historyStep: -1,
-    isDrawing: false
+    isDrawing: false,
+    
+    // State for Rectangle/Selection Tool
+    selection: {
+        startR: -1, 
+        startC: -1,
+        endR: -1, 
+        endC: -1,
+        isActive: false
+    },
+
+    // State for the Switch (Color Swap) tool's undo feature
+    lastSwitch: {
+        preGridData: null, 
+        postGridData: null, 
+        r: -1, 
+        c: -1, 
+        wasUndone: false
+    }
 };
 
+let appState = JSON.parse(JSON.stringify(defaultAppState));
+
 const canvas = document.getElementById('gridCanvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d'); 
 const wrapper = document.getElementById('canvasWrapper');
-const tracingImg = document.getElementById('tracingLayer');
+const tracingImg = document.getElementById('tracingLayer'); // Image element
+const rulerCanvas = document.getElementById('rulerCanvas'); // New Ruler Canvas
+const rulerCtx = rulerCanvas.getContext('2d'); // New Ruler Context
+const zoomLabel = document.getElementById('zoomLabel');
+const dimensionLabel = document.getElementById('dimensionLabel');
+const opacitySlider = document.getElementById('inpOpacity');
+const opacityLabel = document.getElementById('lblOpacity');
+
+// Array of tool buttons for easy iteration
+const toolButtons = [
+    document.getElementById('toolPen'),
+    document.getElementById('toolRectangle'), 
+    document.getElementById('toolFill'),
+    document.getElementById('toolSwitch')
+];
+
+// New constant for export resolution (300 PPI)
+const EXPORT_PPI = 300;
+const UI_PADDING = 30; // Padding for on-screen rulers
+
 
 /* =========================================
-   2. INITIALIZATION
+   2. INITIALIZATION & SETUP
    ========================================= */
 
-function init() {
-    appState.activePalette = [ masterPalette[0], masterPalette[1] ];
-    appState.selectedColorIndex = 0; 
-    updateCurrentColorDisplay();
+function loadAppStateFromLocalStorage() {
+    try {
+        const storedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedState) {
+            const loadedState = JSON.parse(storedState);
+            
+            // Merge with defaults to ensure all keys exist
+            appState = { ...defaultAppState, ...loadedState };
+            
+            // Grid Data is NOT saved in storage anymore. 
+            // We must regenerate it based on stored dimensions if needed.
+            if (!appState.gridData || appState.gridData.length === 0) {
+                 // Calculate grid will ensure gridData is initialized based on loaded wpi/ppi/inches
+                 calculateGrid(); 
+            }
+            
+            // Image source is NO LONGER stored, so we clear the trace src
+            appState.trace.src = null; 
+            tracingImg.src = '';
 
-    resizeGridData(appState.rows, appState.cols);
+            console.log("State loaded from localStorage (Configuration Only).");
+            return true;
+        }
+    } catch (e) {
+        console.error("Could not load state from localStorage:", e);
+    }
+    return false;
+}
+
+function saveAppStateToLocalStorage() {
+    try {
+        // ONLY save configuration and palette data. 
+        // Exclude gridData, history, and large image data (trace.src) to prevent exceeding quota.
+        const stateToSave = {
+            widthInches: appState.widthInches,
+            heightInches: appState.heightInches,
+            wpi: appState.wpi,
+            ppi: appState.ppi,
+            zoom: appState.zoom,
+            activePalette: appState.activePalette,
+            selectedColorIndex: appState.selectedColorIndex,
+            lastColorIndex: appState.lastColorIndex,
+            imageDominance: appState.imageDominance,
+            // Only save image POSITION/SCALE, not the source data URL
+            trace: {
+                x: appState.trace.x, 
+                y: appState.trace.y, 
+                width: appState.trace.width,
+                height: appState.trace.height,
+                naturalWidth: appState.trace.naturalWidth,
+                naturalHeight: appState.trace.naturalHeight,
+                imageRatio: appState.trace.imageRatio 
+            },
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (e) {
+        console.warn("Could not save state to localStorage:", e);
+    }
+}
+
+
+function calculateGrid() {
+    // Calculate total columns and rows
+    const newCols = Math.round(appState.widthInches * appState.wpi);
+    const newRows = Math.round(appState.heightInches * appState.ppi);
+    
+    // Cell Ratio is PPI/WPI (Width per warp / Height per pick)
+    // ratio = (Warps per inch) / (Picks per inch) 
+    // The ratio stored is W/H (Warp Cell Width / Pick Cell Height)
+    const newRatio = appState.wpi > 0 ? (appState.ppi / appState.wpi) : 1;
+
+    // Update labels in the modal regardless of validity
+    document.getElementById('lblCols').textContent = newCols;
+    document.getElementById('lblRows').textContent = newRows;
+    document.getElementById('lblRatio').textContent = newRatio.toFixed(3);
+
+    // If calculated grid size is zero, we stop here to prevent resizeGridData errors
+    if (newCols <= 0 || newRows <= 0) {
+        return; 
+    }
+
+    // Check if the grid actually needs resizing
+    if (newCols !== appState.cols || newRows !== appState.rows) {
+        resizeGridData(newRows, newCols);
+    }
+    
+    // Always update the ratio, as it affects rendering
+    appState.ratio = newRatio;
+    appState.cols = newCols;
+    appState.rows = newRows;
+}
+
+function init() {
+    // Display the timestamp immediately
+    updateTimestamp();
+
+    const loaded = loadAppStateFromLocalStorage();
+    
+    // If not loaded from storage, initialize default palette
+    if (!loaded || appState.activePalette.length === 0) {
+        appState.activePalette = [ masterPalette[0], masterPalette[1] ];
+        appState.selectedColorIndex = 0; 
+        appState.lastColorIndex = 1; 
+    }
+
+    // 1. Initial calculation and resizing (MUST run first)
+    calculateGrid(); 
+    
+    // 2. Set initial slider value and label
+    opacitySlider.value = appState.imageDominance;
+    opacityLabel.textContent = appState.imageDominance + '%';
+    
+    // 3. Set dimensions and draw
     updateCanvasDimensions();
+    
+    // 4. Trace Image visuals will be updated in updateTracingVisuals/updateCanvasDimensions
+    
+    // 5. Save initial state (or loaded state) to history (Grid data only lives in history now)
     saveHistory(); 
     
-    tracingImg.style.display = 'none';
-    canvas.style.opacity = appState.gridOpacity; 
+    setupMenuListeners();
+    setupToolListeners();
+    setupZoomListener();
+    setupPanelListeners();
+    setupGlobalKeyListeners(); 
+    setupCanvasListeners(); // Consolidated canvas mouse listeners
+    renderToolbarPalette();
+    
+    // Ensure 'pen' tool is selected visually on init
+    document.getElementById('toolPen').classList.add('tool-selected');
 }
 
 function resizeGridData(newRows, newCols) {
@@ -381,55 +798,96 @@ function resizeGridData(newRows, newCols) {
         newData.push(row);
     }
     appState.gridData = newData;
-    appState.rows = newRows;
-    appState.cols = newCols;
 }
+
 
 /* =========================================
    3. RENDERING & LAYOUT
    ========================================= */
 
-// Calculates the logical size of the grid container (what the tracing image fits into)
 function getGridLogicDimensions() {
-    const cellW = appState.cellBaseWidth;
-    const cellH = cellW / appState.ratio;
+    // Logical dimensions at 1.0 zoom
+    const cellW = appState.cellBaseWidth; 
+    // Cell height is (Cell Width / Ratio)
+    const cellH = appState.ratio > 0 ? (cellW / appState.ratio) : cellW;
+    
     return {
         width: appState.cols * cellW,
-        height: appState.rows * cellH
+        height: appState.rows * cellH,
+        cellH: cellH,
+        cellW: cellW
     };
 }
 
 function updateCanvasDimensions() {
-    const cellW = appState.cellBaseWidth * appState.zoom;
-    const cellH = cellW / appState.ratio; 
-
-    const totalW = appState.cols * cellW;
-    const totalH = appState.rows * cellH;
-
-    canvas.width = totalW;
-    canvas.height = totalH;
-    wrapper.style.width = `${totalW}px`;
-    wrapper.style.height = `${totalH}px`;
-
-    updateTracingVisuals();
-    drawGrid();
-    document.getElementById('zoomLabel').textContent = Math.round(appState.zoom * 100) + '%';
-}
-
-function updateTracingVisuals() {
-    if (!appState.trace.src || !appState.trace.visible) {
-        tracingImg.style.display = 'none';
+    // Check if grid dimensions are valid before drawing
+    if (appState.cols <= 0 || appState.rows <= 0) {
+        canvas.width = 0;
+        canvas.height = 0;
+        wrapper.style.width = `0px`;
+        wrapper.style.height = `0px`;
+        wrapper.style.transform = `translate(0, 0)`; // Reset wrapper position
         return;
     }
 
-    tracingImg.style.display = 'block';
-    // Image opacity is controlled by the modal setting
-    tracingImg.style.opacity = appState.trace.opacity; 
+    const cellW = appState.cellBaseWidth * appState.zoom;
+    const cellH = appState.ratio > 0 ? (cellW / appState.ratio) : cellW; 
+
+    const patternW = appState.cols * cellW;
+    const patternH = appState.rows * cellH;
+
+    // Canvas size includes the pattern only (no padding)
+    canvas.width = patternW;
+    canvas.height = patternH;
+    
+    // Wrapper size includes the pattern plus padding for rulers
+    wrapper.style.width = `${patternW + UI_PADDING}px`;
+    wrapper.style.height = `${patternH + UI_PADDING}px`;
+    
+    // Position the canvas inside the wrapper, offset by the ruler padding
+    canvas.style.transform = `translate(${UI_PADDING}px, 0px)`; 
+    
+    // Control grid opacity based on imageDominance slider
+    const dominanceFraction = appState.imageDominance / 100;
+    
+    // Grid opacity is 1.0 at 0% dominance, 0.0 at 100% dominance
+    canvas.style.opacity = (1 - dominanceFraction); 
+
+    updateTracingVisuals();
+    drawGrid();
+    drawRulers(); // Call the new ruler drawing function
+    
+    // Update labels (Toolbar reordering implemented in HTML)
+    zoomLabel.textContent = Math.round(appState.zoom * 100) + '%';
+    dimensionLabel.textContent = `${appState.widthInches.toFixed(2)}" W x ${appState.heightInches.toFixed(2)}" H`;
+}
+
+
+function updateTracingVisuals() {
+    if (!appState.trace.src) {
+        // Ensure the element is completely hidden if no source is loaded
+        tracingImg.style.display = 'none'; 
+        return;
+    }
+
+    // Image opacity is controlled directly by imageDominance slider
+    const dominanceFraction = appState.imageDominance / 100;
+    const gridLogic = getGridLogicDimensions();
+
+    tracingImg.style.display = 'block'; 
+    tracingImg.style.opacity = dominanceFraction; 
     
     const displayW = appState.trace.width * appState.zoom;
     const displayH = appState.trace.height * appState.zoom;
-    const displayX = appState.trace.x * appState.zoom;
-    const displayY = appState.trace.y * appState.zoom;
+    
+    // Image is offset by UI_PADDING + appState.trace.x * zoom
+    const displayX = UI_PADDING + (appState.trace.x * appState.zoom); 
+    
+    // Y position is relative to the TOP of the canvas.
+    // The image's TOP edge position on the canvas (top-down, 0=top) is:
+    // Logical Grid Height (at 1x) - Image Height (at 1x) - Y offset from grid BOTTOM (at 1x) * Zoom
+    const displayY = (gridLogic.height - appState.trace.height - appState.trace.y) * appState.zoom;
+
 
     tracingImg.style.width = `${displayW}px`;
     tracingImg.style.height = `${displayH}px`;
@@ -437,269 +895,333 @@ function updateTracingVisuals() {
     tracingImg.style.top = `${displayY}px`;
 }
 
-function drawGrid() {
+
+function drawRulers() {
+    // If the canvas isn't initialized, skip
+    if (appState.cols <= 0 || appState.rows <= 0) return;
+
     const cellW = appState.cellBaseWidth * appState.zoom;
-    const cellH = cellW / appState.ratio;
+    const cellH = appState.ratio > 0 ? (cellW / appState.ratio) : cellW;
+
+    const patternW = appState.cols * cellW;
+    const patternH = appState.rows * cellH;
+
+    // Ruler canvas size matches the wrapper size
+    rulerCanvas.width = patternW + UI_PADDING;
+    rulerCanvas.height = patternH + UI_PADDING;
+    rulerCtx.clearRect(0, 0, rulerCanvas.width, rulerCanvas.height);
+    
+    // Drawing styles
+    rulerCtx.strokeStyle = "#555";
+    rulerCtx.fillStyle = "#333";
+    rulerCtx.font = '11px Figtree, sans-serif';
+    rulerCtx.textAlign = 'center';
+    rulerCtx.textBaseline = 'middle';
+    rulerCtx.lineWidth = 1;
+
+    // --- Ruler Scaling Calculations ---
+    // The number of logical pixels in one inch, scaled by current zoom
+    const pxPerWarpInch = (appState.cellBaseWidth * appState.wpi) * appState.zoom;
+    const pxPerPickInch = (appState.cellBaseWidth / appState.ratio * appState.ppi) * appState.zoom;
+
+    // Pixels for a 0.25 inch interval
+    const quarterInchPxW = pxPerWarpInch * 0.25;
+    const quarterInchPxH = pxPerPickInch * 0.25;
+
+    // --- 1. Top Ruler (Warp/Columns) - Inch Labels ---
+    // The ruler line is drawn at Y=UI_PADDING-1. Ticks point down.
+    rulerCtx.beginPath();
+    rulerCtx.moveTo(UI_PADDING, UI_PADDING - 1);
+    rulerCtx.lineTo(patternW + UI_PADDING, UI_PADDING - 1);
+    rulerCtx.stroke();
+    
+    // Draw Inch Ticks and Labels (Top Ruler)
+    for (let i = 0; i <= appState.widthInches * 4; i++) {
+        // xPos = PADDING + (index of quarter inch * quarter inch pixel width)
+        const xPos = UI_PADDING + (i * quarterInchPxW);
+        let tickHeight = 3;
+        let label = '';
+
+        if (i % 4 === 0) { // Every 1 inch (i is a multiple of 4)
+            tickHeight = 6;
+            label = `${i / 4}"`;
+            
+            // Draw column count label above the inch label (e.g., every 10 columns)
+            const colIndex = Math.round((xPos - UI_PADDING) / cellW);
+            if (colIndex > 0 && colIndex % 10 === 0) {
+                 rulerCtx.fillStyle = "#0078d4"; // Highlight column count
+                 rulerCtx.fillText(colIndex.toString(), xPos, UI_PADDING - 15);
+                 rulerCtx.fillStyle = "#333"; // Reset color
+            }
+        }
+        
+        // Draw tick mark
+        rulerCtx.beginPath();
+        rulerCtx.moveTo(xPos, UI_PADDING - 1);
+        rulerCtx.lineTo(xPos, UI_PADDING - 1 - tickHeight);
+        rulerCtx.stroke();
+        
+        // Draw inch label
+        if (label) {
+            rulerCtx.fillText(label, xPos, UI_PADDING - 6); // Position slightly lower than the column count
+        }
+    }
+
+
+    // --- 2. Left Ruler (Pick/Rows) - Inch and Row Labels ---
+    // The ruler line is drawn at X=UI_PADDING-1. Ticks point right.
+    rulerCtx.beginPath();
+    rulerCtx.moveTo(UI_PADDING - 1, 0);
+    rulerCtx.lineTo(UI_PADDING - 1, patternH);
+    rulerCtx.stroke();
+
+    // Draw Inch Ticks and Labels (Left Ruler)
+    rulerCtx.textAlign = 'right';
+    for (let i = 0; i <= appState.heightInches * 4; i++) {
+        // yPos is calculated from the canvas TOP down. We want to draw from the bottom up.
+        // yPos = Total Pattern Height - (index of quarter inch * quarter inch pixel height)
+        const yPos = patternH - (i * quarterInchPxH); 
+        let tickWidth = 3;
+        let label = '';
+        
+        if (i % 4 === 0) { // Every 1 inch
+            tickWidth = 6;
+            label = `${i / 4}"`;
+        }
+
+        // Draw tick mark
+        rulerCtx.beginPath();
+        rulerCtx.moveTo(UI_PADDING - 1, yPos);
+        rulerCtx.lineTo(UI_PADDING - 1 - tickWidth, yPos);
+        rulerCtx.stroke();
+        
+        // Draw inch label
+        if (label) {
+            rulerCtx.fillText(label, UI_PADDING - 10, yPos);
+        }
+    }
+    
+    // Draw Row Labels (counting from bottom up, every 20 rows)
+    rulerCtx.fillStyle = "#333";
+    rulerCtx.textAlign = 'right';
+    for (let r = 0; r <= appState.rows; r += 20) {
+        // r is the logical row number from the bottom (0, 20, 40...)
+        // yPos is the top edge of this logical row, scaled by cellH
+        const yPos = patternH - (r * cellH);
+        
+        // Position 20px left of the pattern, vertically centered on the row
+        // We use UI_PADDING - 20, which is to the left of the inch labels (UI_PADDING - 10)
+        rulerCtx.fillStyle = "#0078d4"; // Highlight row count
+        rulerCtx.fillText(r.toString(), UI_PADDING - 20, yPos - (cellH/2)); 
+        rulerCtx.fillStyle = "#333"; // Reset color
+    }
+}
+
+
+function drawGrid() {
+    if (appState.cols <= 0 || appState.rows <= 0) return;
+
+    const cellW = appState.cellBaseWidth * appState.zoom;
+    const cellH = appState.ratio > 0 ? (cellW / appState.ratio) : cellW;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.beginPath(); 
+    ctx.strokeStyle = "#bbb"; // Use a lighter color for on-screen grid
+    ctx.lineWidth = 1;
 
     for (let r = 0; r < appState.rows; r++) {
+        // InvertedR is the row index from the grid BOTTOM for gridData access
+        const invertedR = appState.rows - 1 - r; 
+        const drawY = r * cellH; // Canvas Y coordinate (from top)
+        
         for (let c = 0; c < appState.cols; c++) {
-            const colorIndex = appState.gridData[r][c];
+            if (appState.gridData[invertedR] === undefined) continue; 
             
+            const colorIndex = appState.gridData[invertedR][c];
+            
+            // Draw colored cell or background
             if (colorIndex > -1 && appState.activePalette[colorIndex]) {
                 ctx.fillStyle = appState.activePalette[colorIndex].hex;
-                ctx.fillRect(c * cellW, r * cellH, cellW, cellH);
+            } else {
+                ctx.fillStyle = '#fefefe'; 
             }
+            ctx.fillRect(c * cellW, drawY, cellW, cellH);
 
-            // Grid Lines
-            ctx.strokeStyle = "rgba(0,0,0,0.1)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(c * cellW, r * cellH, cellW, cellH);
+            // --- Grid Marks (Picks/Horizontal only, every 20 rows) ---
+            if (r % 20 === 0) {
+                // Add horizontal line to the path for the top of this row (bottom of previous row)
+                ctx.moveTo(c * cellW, drawY);
+                ctx.lineTo((c + 1) * cellW, drawY);
+            }
         }
+        
+        // Ensure the bottom line of the last row is drawn (r=rows-1)
+        if (r === appState.rows - 1 && (r+1) % 20 === 0) {
+             const finalY = (r + 1) * cellH;
+             ctx.moveTo(0, finalY);
+             ctx.lineTo(canvas.width, finalY);
+        }
+    }
+    
+    // Draw all grid lines at once 
+    ctx.stroke();
+    
+    // Draw the selection box if active (must be done last)
+    drawSelectionBox();
+}
+
+function drawSelectionBox() {
+    if (appState.toolMode === 'rectangle' && appState.selection.isActive) {
+        const cellW = appState.cellBaseWidth * appState.zoom;
+        const cellH = appState.ratio > 0 ? (cellW / appState.ratio) : cellW;
+        
+        const startC = appState.selection.startC;
+        const startR = appState.selection.startR; // Row index from bottom (logical)
+        const currentC = appState.selection.endC;
+        const currentR = appState.selection.endR; // Row index from bottom (logical)
+
+        // Find the min/max coordinates (in columns/rows)
+        const minC = Math.min(startC, currentC);
+        const maxC = Math.max(startC, currentC);
+        const minR = Math.min(startR, currentR);
+        const maxR = Math.max(startR, currentR);
+        
+        // Calculate dimensions in logical pixels (startC/R is the top-left cell of the selection)
+        const drawX = minC * cellW;
+        
+        // The canvas Y coordinate must be derived from the highest row index (maxR)
+        // Canvas Y starts at top (0). We want the TOP edge of the highest selected row.
+        // Index from TOP for drawing = (Total Rows - 1 - index from bottom)
+        const topRowIndexCanvas = appState.rows - 1 - maxR; 
+        const drawY = topRowIndexCanvas * cellH; 
+        
+        const width = (maxC - minC + 1) * cellW;
+        const height = (maxR - minR + 1) * cellH;
+
+        ctx.strokeStyle = '#ff0000'; 
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]); 
+        ctx.strokeRect(drawX + 1.5, drawY + 1.5, width - 3, height - 3); 
+        ctx.setLineDash([]); // Reset line dash
     }
 }
 
-/* =========================================
-   4. DIGITIZING IMAGE & AUTO-DIGITIZATION
-   ========================================= */
-
-// Toggle Visibility (Now toggles GRID opacity)
-document.getElementById('btnDigitizeToggle').addEventListener('click', () => {
-    // Toggle between opaque (1.0) and semi-transparent (0.5)
-    appState.gridOpacity = appState.gridOpacity === 1.0 ? 0.5 : 1.0; 
-    canvas.style.opacity = appState.gridOpacity;
-    
-    // Update button text/title if needed for clarity
-    document.getElementById('btnDigitizeToggle').title = appState.gridOpacity === 1.0 ? 'Grid Opaque (Click to see image)' : 'Grid Transparent (Click for solid view)';
-});
-
-document.getElementById('btnDigitizeRead').addEventListener('click', () => {
-    document.getElementById('fileInputImg').click();
-});
-
-function fitImageToGrid() {
-    if (!appState.trace.naturalWidth || !appState.trace.naturalHeight) return;
-
-    const gridLogic = getGridLogicDimensions();
-    const imageAR = appState.trace.imageRatio; // W/H
-    const gridAR = gridLogic.width / gridLogic.height;
-
-    let newW, newH;
-
-    // Determine Fit (Fit within the bounds of the grid)
-    if (imageAR > gridAR) {
-        // Image is wider than the grid area ratio: Fit to width
-        newW = gridLogic.width;
-        newH = newW / imageAR;
+function updateCurrentColorDisplay() {
+    const div = document.getElementById('current-color-display');
+    const color = appState.activePalette[appState.selectedColorIndex];
+    if (color) {
+        div.style.backgroundColor = color.hex;
+        div.title = `${color.name.charAt(0).toUpperCase() + color.name.slice(1)}`; // Only color name, capitalized
     } else {
-        // Image is taller than the grid area ratio: Fit to height
-        newH = gridLogic.height;
-        newW = newH * imageAR;
+        div.style.backgroundColor = 'transparent';
+        div.title = 'None Selected';
     }
-
-    appState.trace.width = newW;
-    appState.trace.height = newH;
-    
-    // Center the image
-    appState.trace.x = (gridLogic.width - newW) / 2;
-    appState.trace.y = (gridLogic.height - newH) / 2;
-
-    syncDigitizeModalValues(); 
-    updateTracingVisuals();
 }
 
-document.getElementById('fileInputImg').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            const img = new Image();
-            img.onload = () => {
-                appState.trace.src = img.src;
-                appState.trace.visible = true;
-                appState.trace.naturalWidth = img.width;
-                appState.trace.naturalHeight = img.height;
-                appState.trace.imageRatio = img.width / img.height;
-                
-                tracingImg.src = img.src;
-                fitImageToGrid(); 
-            };
-            img.src = evt.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-    e.target.value = '';
-});
-
-// AUTO-DIGITIZE LOGIC
-document.getElementById('btnAutoDigitize').addEventListener('click', () => {
-    if (!appState.trace.src) return;
-    if(appState.activePalette.length === 0) {
-        alert("Please add colors to your Active Palette first.");
-        return;
-    }
-    if(!confirm("This will overwrite your current grid with a digitized version of the image. Continue?")) return;
-
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = appState.trace.naturalWidth;
-    offCanvas.height = appState.trace.naturalHeight;
-    const offCtx = offCanvas.getContext('2d');
+function renderToolbarPalette() {
+    const container = document.getElementById('toolbar-palette');
+    container.innerHTML = '';
     
-    const imgObj = new Image();
-    imgObj.src = appState.trace.src;
-    imgObj.onload = () => {
-        offCtx.drawImage(imgObj, 0, 0);
+    updateCurrentColorDisplay();
+
+    appState.activePalette.forEach((color, idx) => {
+        const d = document.createElement('div');
+        d.className = 'toolbar-swatch';
+        if (idx === appState.selectedColorIndex) d.classList.add('selected');
+        d.style.backgroundColor = color.hex;
+        d.title = `${color.name.charAt(0).toUpperCase() + color.name.slice(1)}`; // Only color name, capitalized
         
-        const paletteRGB = appState.activePalette.map(c => hexToRgb(c.hex));
-
-        const cellW = appState.cellBaseWidth;
-        const cellH = cellW / appState.ratio;
-        
-        const scaleX = appState.trace.naturalWidth / appState.trace.width;
-        const scaleY = appState.trace.naturalHeight / appState.trace.height;
-
-        for(let r = 0; r < appState.rows; r++) {
-            for(let c = 0; c < appState.cols; c++) {
-                const cellLogicX = c * cellW;
-                const cellLogicY = r * cellH;
-                
-                const relX = cellLogicX - appState.trace.x;
-                const relY = cellLogicY - appState.trace.y;
-                
-                const imgX = Math.floor(relX * scaleX);
-                const imgY = Math.floor(relY * scaleY);
-                const imgW = Math.max(1, Math.floor(cellW * scaleX));
-                const imgH = Math.max(1, Math.floor(cellH * scaleY));
-
-                if (imgX >= 0 && imgY >= 0 && imgX + imgW <= appState.trace.naturalWidth && imgY + imgH <= appState.trace.naturalHeight) {
-                    
-                    const pixelData = offCtx.getImageData(imgX, imgY, imgW, imgH).data;
-                    let rTotal = 0, gTotal = 0, bTotal = 0, count = 0;
-                    
-                    const step = 1; 
-                    for (let i = 0; i < pixelData.length; i += 4 * step) {
-                        rTotal += pixelData[i];
-                        gTotal += pixelData[i+1];
-                        bTotal += pixelData[i+2];
-                        count++;
-                    }
-                    
-                    if(count > 0) {
-                        const avgR = rTotal / count;
-                        const avgG = gTotal / count;
-                        const avgB = bTotal / count;
-                        
-                        let minDist = Infinity;
-                        let bestIdx = -1;
-                        
-                        for(let p = 0; p < paletteRGB.length; p++) {
-                            const pr = paletteRGB[p].r;
-                            const pg = paletteRGB[p].g;
-                            const pb = paletteRGB[p].b;
-                            const dist = Math.sqrt((avgR-pr)**2 + (avgG-pg)**2 + (avgB-pb)**2);
-                            if(dist < minDist) {
-                                minDist = dist;
-                                bestIdx = p;
-                            }
-                        }
-                        
-                        appState.gridData[r][c] = bestIdx;
-                    }
-                } else {
-                    // Cell is off the image
-                }
-            }
-        }
-        
-        drawGrid();
-        saveHistory();
-        closeModal('digitizeModal');
-        alert("Digitization Complete!");
-    };
-});
-
-function hexToRgb(hex) {
-    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    hex = hex.replace(shorthandRegex, function(m, r, g, b) {
-        return r + r + g + g + b + b;
+        d.addEventListener('click', () => {
+            // Update lastColorIndex before changing selectedColorIndex
+            appState.lastColorIndex = appState.selectedColorIndex;
+            appState.selectedColorIndex = idx;
+            renderToolbarPalette();
+        });
+        container.appendChild(d);
     });
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-    } : { r: 0, g: 0, b: 0 };
 }
 
-
-// Settings Menu Logic
-const digitizeModal = document.getElementById('digitizeModal');
-
-document.getElementById('btnDigitizeSettings').addEventListener('click', () => {
-    if (!appState.trace.src) {
-        alert("Please load an image first.");
-        return;
-    }
-    syncDigitizeModalValues();
-    digitizeModal.style.display = 'block';
-});
-
-function syncDigitizeModalValues() {
-    document.getElementById('inpOpacity').value = appState.trace.opacity * 100;
-    document.getElementById('lblOpacity').textContent = Math.round(appState.trace.opacity * 100) + '%';
-    document.getElementById('inpImgX').value = Math.round(appState.trace.x);
-    document.getElementById('inpImgY').value = Math.round(appState.trace.y);
-    const currentScale = (appState.trace.width / appState.trace.naturalWidth) * 100;
-    document.getElementById('inpImgScale').value = Math.round(currentScale);
-}
-
-// Button Handlers for Image Movement/Scale
-document.getElementById('inpOpacity').addEventListener('input', (e) => {
-    const val = e.target.value;
-    document.getElementById('lblOpacity').textContent = val + '%';
-    appState.trace.opacity = val / 100;
-    updateTracingVisuals();
-});
-document.getElementById('inpImgX').addEventListener('change', (e) => {
-    appState.trace.x = parseInt(e.target.value) || 0;
-    updateTracingVisuals();
-});
-document.getElementById('inpImgY').addEventListener('change', (e) => {
-    appState.trace.y = parseInt(e.target.value) || 0;
-    updateTracingVisuals();
-});
-document.getElementById('inpImgScale').addEventListener('change', (e) => {
-    const scale = parseFloat(e.target.value) / 100;
-    if(scale > 0) {
-        appState.trace.width = appState.trace.naturalWidth * scale;
-        appState.trace.height = appState.trace.naturalHeight * scale;
-        updateTracingVisuals();
-    }
-});
-document.getElementById('btnImgFitWidth').addEventListener('click', () => {
-    const gridW = getGridLogicDimensions().width;
-    appState.trace.width = gridW;
-    appState.trace.height = gridW / appState.trace.imageRatio;
-    appState.trace.x = 0; 
-    appState.trace.y = (getGridLogicDimensions().height - appState.trace.height) / 2;
-    syncDigitizeModalValues(); updateTracingVisuals();
-});
-document.getElementById('btnImgFitHeight').addEventListener('click', () => {
-    const gridH = getGridLogicDimensions().height;
-    appState.trace.height = gridH;
-    appState.trace.width = gridH * appState.trace.imageRatio;
-    appState.trace.y = 0; 
-    appState.trace.x = (getGridLogicDimensions().width - appState.trace.width) / 2;
-    syncDigitizeModalValues(); updateTracingVisuals();
-});
-document.getElementById('btnImgReset').addEventListener('click', () => {
-    fitImageToGrid();
-});
 
 /* =========================================
-   5. PAINTING INTERACTION
+   4. ZOOMING & PANEL CONTROLS
    ========================================= */
+
+function applyZoom(delta) {
+    const zoomStep = 0.1; 
+    let newZoom;
+
+    if (delta < 0) {
+        newZoom = Math.min(4.0, appState.zoom + zoomStep);
+    } else {
+        newZoom = Math.max(0.1, appState.zoom - zoomStep);
+    }
+    
+    newZoom = Math.round(newZoom * 10) / 10;
+    
+    if (newZoom !== appState.zoom) {
+        appState.zoom = newZoom;
+        updateCanvasDimensions();
+    }
+}
+
+function setupZoomListener() {
+    document.getElementById('canvasArea').addEventListener('wheel', (e) => {
+        e.preventDefault(); 
+        applyZoom(e.deltaY);
+    }, { passive: false }); 
+}
+
+function setupPanelListeners() {
+    // Image Dominance Slider (0=Grid Only, 100=Image Only)
+    opacitySlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        appState.imageDominance = val;
+        opacityLabel.textContent = val + '%';
+        // Calls updateTracingVisuals and updates canvas.style.opacity
+        updateCanvasDimensions(); 
+    });
+    
+    // Load Image Button 
+    document.getElementById('btnLoadImage').addEventListener('click', () => document.getElementById('fileInputImg').click());
+
+    // DIGITIZE BUTTON RESTORED
+    document.getElementById('btnDigitizePanel').addEventListener('click', digitizeImage);
+
+    // Image Settings button 
+    document.getElementById('menuDigitizeSettings').addEventListener('click', () => {
+        if (!appState.trace.naturalWidth) {
+            alert("Please load an image first.");
+            return;
+        }
+        syncDigitizeModalValues();
+        document.getElementById('digitizeModal').style.display = 'block';
+    });
+    
+    // Clear Grid button (Moved to panel)
+    document.getElementById('menuClear').addEventListener('click', clearGrid);
+}
+
+
+/* =========================================
+   5. DRAWING TOOLS
+   ========================================= */
+
+function setupToolListeners() {
+    toolButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            appState.toolMode = btn.id.replace('tool', '').toLowerCase();
+            
+            // Ensure only the clicked tool is selected
+            toolButtons.forEach(b => b.classList.remove('tool-selected'));
+            btn.classList.add('tool-selected');
+            
+            // Clear any active selection when switching tools
+            appState.selection.isActive = false;
+            drawGrid();
+        });
+    });
+}
 
 function getCellCoords(e) {
     const rect = canvas.getBoundingClientRect();
@@ -707,79 +1229,299 @@ function getCellCoords(e) {
     const y = e.clientY - rect.top;
     
     const cellW = appState.cellBaseWidth * appState.zoom;
-    const cellH = cellW / appState.ratio;
+    const cellH = appState.ratio > 0 ? (cellW / appState.ratio) : cellW;
 
     const c = Math.floor(x / cellW);
-    const r = Math.floor(y / cellH);
+    
+    // Invert Y to get row index from the bottom (0,0 is now bottom-left)
+    const totalH = appState.rows * cellH;
+    const adjustedY = totalH - y;
+    const r = Math.floor(adjustedY / cellH);
 
-    return { r, c };
+    return { 
+        r: Math.max(0, Math.min(appState.rows - 1, r)), 
+        c: Math.max(0, Math.min(appState.cols - 1, c)) 
+    };
 }
 
 function paint(r, c) {
     if (r >= 0 && r < appState.rows && c >= 0 && c < appState.cols) {
-        if (appState.gridData[r][c] !== appState.selectedColorIndex) {
-            appState.gridData[r][c] = appState.selectedColorIndex;
-            drawGrid(); 
-            return true;
+        const currentColorIndex = appState.gridData[r][c];
+
+        if (appState.toolMode === 'pen' || appState.toolMode === 'rectangle') {
+            // Reset lastSwitch state on any new drawing action
+            appState.lastSwitch.preGridData = null; 
+
+            if (appState.toolMode === 'pen' && currentColorIndex === appState.selectedColorIndex) {
+                // If cell is already the selected color, toggle it to the last color (or uncolored)
+                let targetColor = appState.lastColorIndex > -1 ? appState.lastColorIndex : -1;
+                
+                // If lastColorIndex is the same as the selectedColorIndex, toggle to -1 (uncolored)
+                if (targetColor === appState.selectedColorIndex) targetColor = -1;
+                
+                // Update lastColorIndex to the color we were painting (so we can quickly toggle back)
+                appState.lastColorIndex = appState.selectedColorIndex;
+                appState.gridData[r][c] = targetColor;
+                drawGrid();
+                return true;
+            }
+            
+            // Paint the new color, and update lastColorIndex
+            if (currentColorIndex !== appState.selectedColorIndex) {
+                // Only update lastColorIndex if the cell was colored before or it's not the current selection
+                if (currentColorIndex > -1) {
+                    appState.lastColorIndex = currentColorIndex;
+                } else if (appState.selectedColorIndex > -1) {
+                    // If moving from uncolored, the last color is the one we are painting now
+                    appState.lastColorIndex = appState.selectedColorIndex;
+                }
+                
+                appState.gridData[r][c] = appState.selectedColorIndex;
+                drawGrid(); 
+                return true;
+            }
         }
     }
     return false;
 }
 
-canvas.addEventListener('mousedown', (e) => {
-    if(e.button === 2) return; 
-    appState.isDrawing = true;
-    const { r, c } = getCellCoords(e);
-    paint(r, c);
-});
+function fill(startR, startC) {
+    if (startR < 0 || startR >= appState.rows || startC < 0 || startC >= appState.cols) return;
+    
+    const targetColorIndex = appState.gridData[startR][startC];
+    const newColorIndex = appState.selectedColorIndex;
 
-canvas.addEventListener('mousemove', (e) => {
-    if (appState.isDrawing) {
-        const { r, c } = getCellCoords(e);
-        paint(r, c);
-    }
-});
+    if (targetColorIndex === newColorIndex) return;
+    
+    // Reset lastSwitch state on any new drawing action
+    appState.lastSwitch.preGridData = null; 
 
-window.addEventListener('mouseup', () => {
-    if (appState.isDrawing) {
-        appState.isDrawing = false;
-        saveHistory();
-    }
-});
+    // Update last color before filling
+    if (targetColorIndex > -1) appState.lastColorIndex = targetColorIndex;
 
-canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    const { r, c } = getCellCoords(e);
-    if (r >= 0 && r < appState.rows && c >= 0 && c < appState.cols) {
-        const idx = appState.gridData[r][c];
-        if (idx > -1) {
-            appState.selectedColorIndex = idx;
-            updateCurrentColorDisplay();
+    let changed = false;
+    const stack = [[startR, startC]];
+    
+    while (stack.length > 0) {
+        const [r, c] = stack.pop();
+
+        if (r < 0 || r >= appState.rows || c < 0 || c >= appState.cols) continue;
+        
+        if (appState.gridData[r] && appState.gridData[r][c] === targetColorIndex) {
+            appState.gridData[r][c] = newColorIndex;
+            changed = true;
+
+            stack.push([r + 1, c]);
+            stack.push([r - 1, c]);
+            stack.push([r, c + 1]);
+            stack.push([r, c - 1]);
         }
     }
-});
+    
+    if (changed) {
+        drawGrid();
+        saveHistory();
+    }
+}
+
+function colorSwitch(r, c) {
+    if (r < 0 || r >= appState.rows || c < 0 || c >= appState.cols) return;
+    
+    const targetColorIndex = appState.gridData[r][c];
+    const newColorIndex = appState.selectedColorIndex;
+
+    // --- Switch Undo/Toggle ---
+    const isSameCell = appState.lastSwitch.r === r && appState.lastSwitch.c === c;
+
+    if (isSameCell && appState.lastSwitch.postGridData) {
+        // Check if current grid matches the 'post-switch' state (i.e., we haven't drawn since)
+        const currentDataString = JSON.stringify(appState.gridData);
+        if (currentDataString === appState.lastSwitch.postGridData) {
+            // Revert the grid to the pre-switch state
+            appState.gridData = JSON.parse(appState.lastSwitch.preGridData).map(row => [...row]);
+            appState.lastSwitch.wasUndone = true;
+            drawGrid();
+            saveHistory(); // Save the undo action to history
+            return; 
+        }
+    }
+    // --- END: Switch Undo/Toggle ---
+
+    if (targetColorIndex === newColorIndex) return;
+    
+    // Record the current state *before* the switch
+    appState.lastSwitch.preGridData = JSON.stringify(appState.gridData);
+
+    // Update last color before switching to allow quick change back
+    if (targetColorIndex > -1) {
+        appState.lastColorIndex = targetColorIndex;
+    } else if (appState.selectedColorIndex > -1) {
+        appState.lastColorIndex = appState.selectedColorIndex;
+    }
+
+    let changed = false;
+    
+    for(let row = 0; row < appState.rows; row++) {
+        for(let col = 0; col < appState.cols; col++) {
+            if(appState.gridData[row][col] === targetColorIndex) {
+                appState.gridData[row][col] = newColorIndex;
+                changed = true;
+            }
+        }
+    }
+
+    if (changed) {
+        // Record the post-switch state
+        appState.lastSwitch.postGridData = JSON.stringify(appState.gridData);
+        appState.lastSwitch.r = r;
+        appState.lastSwitch.c = c;
+        appState.lastSwitch.wasUndone = false;
+
+        drawGrid();
+        saveHistory();
+    }
+}
+
+// Function to apply the rectangle fill to the grid data
+function applyRectangle(startR, startC, endR, endC) {
+    // Determine the boundaries
+    const minR = Math.min(startR, endR);
+    const maxR = Math.max(startR, endR);
+    const minC = Math.min(startC, endC);
+    const maxC = Math.max(startC, endC);
+
+    const newColorIndex = appState.selectedColorIndex;
+
+    // Apply the fill
+    for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+            if (r >= 0 && r < appState.rows && c >= 0 && c < appState.cols) {
+                // Update lastColorIndex (simple update: the last color is the one we are painting now)
+                if (appState.gridData[r][c] !== newColorIndex) {
+                    appState.lastColorIndex = newColorIndex;
+                }
+                appState.gridData[r][c] = newColorIndex;
+            }
+        }
+    }
+    
+    drawGrid();
+    saveHistory();
+}
+
+function setupCanvasListeners() {
+    canvas.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        if (appState.cols <= 0 || appState.rows <= 0) return; 
+        const { r, c } = getCellCoords(e);
+        
+        if (e.button === 0) { // Left Click
+            // Reset lastSwitch state on any new drawing action (except for fill/switch actions themselves)
+            if(appState.toolMode !== 'fill' && appState.toolMode !== 'switch') {
+                appState.lastSwitch.preGridData = null; 
+            }
+
+            if (appState.toolMode === 'pen') {
+                appState.isDrawing = true;
+                paint(r, c);
+            } else if (appState.toolMode === 'fill') {
+                fill(r, c);
+            } else if (appState.toolMode === 'switch') {
+                colorSwitch(r, c);
+            } else if (appState.toolMode === 'rectangle') {
+                appState.selection.startR = r;
+                appState.selection.startC = c;
+                appState.selection.endR = r; // Start with a 1x1 selection
+                appState.selection.endC = c;
+                appState.selection.isActive = true;
+                appState.isDrawing = true; // Use isDrawing to track drag state
+            }
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!appState.isDrawing) return;
+        
+        const { r, c } = getCellCoords(e);
+        
+        if (appState.toolMode === 'pen') {
+            paint(r, c);
+        } else if (appState.toolMode === 'rectangle') {
+            // Update the end point of the selection
+            if (r !== appState.selection.endR || c !== appState.selection.endC) {
+                appState.selection.endR = r;
+                appState.selection.endC = c;
+                drawGrid(); // Redraw grid with selection box
+            }
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (appState.isDrawing) {
+            appState.isDrawing = false;
+            
+            if (appState.toolMode === 'rectangle' && appState.selection.isActive) {
+                const { startR, startC, endR, endC } = appState.selection;
+                
+                // Only apply if the selection is a real area (not a single click, or dragged to a different cell)
+                if (startR !== endR || startC !== endC) {
+                    applyRectangle(startR, startC, endR, endC);
+                } else {
+                    // If it was just a click, treat it like a single pen click
+                    paint(startR, startC);
+                    saveHistory(); 
+                }
+                
+                // Clear the selection box visual
+                appState.selection.isActive = false;
+                drawGrid();
+            } else if (appState.toolMode === 'pen') {
+                saveHistory();
+            }
+        }
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (appState.cols <= 0 || appState.rows <= 0) return; 
+        const { r, c } = getCellCoords(e);
+        if (r >= 0 && r < appState.rows && c >= 0 && c < appState.cols) {
+            const idx = appState.gridData[r][c];
+            if (idx > -1) {
+                // Update lastColorIndex before changing selectedColorIndex
+                appState.lastColorIndex = appState.selectedColorIndex;
+                appState.selectedColorIndex = idx;
+                renderToolbarPalette(); 
+            }
+        }
+    });
+}
 
 
 /* =========================================
-   6. HISTORY
+   6. HISTORY & FILE I/O
    ========================================= */
 
 function saveHistory() {
     if (appState.historyStep < appState.history.length - 1) {
         appState.history = appState.history.slice(0, appState.historyStep + 1);
     }
-    const cloneData = appState.gridData.map(row => [...row]);
-    appState.history.push({
-        gridData: cloneData,
-        rows: appState.rows,
-        cols: appState.cols,
-        trace: JSON.parse(JSON.stringify(appState.trace))
-    });
-    appState.historyStep++;
-    if(appState.history.length > 30) {
-        appState.history.shift();
-        appState.historyStep--;
+    // Only save history if the grid is initialized
+    if(appState.cols > 0 && appState.rows > 0) {
+        const cloneData = appState.gridData.map(row => [...row]);
+        appState.history.push({
+            gridData: cloneData,
+            rows: appState.rows,
+            cols: appState.cols
+        });
+        appState.historyStep++;
+        if(appState.history.length > 30) {
+            appState.history.shift();
+            appState.historyStep--;
+        }
     }
+    // ALWAYS save current operational state to local storage after any change
+    saveAppStateToLocalStorage();
 }
 
 function restoreHistory(step) {
@@ -787,86 +1529,174 @@ function restoreHistory(step) {
     appState.gridData = state.gridData.map(row => [...row]);
     appState.rows = state.rows;
     appState.cols = state.cols;
-    appState.trace = JSON.parse(JSON.stringify(state.trace));
-    if (appState.trace.src) tracingImg.src = appState.trace.src;
-    else tracingImg.src = "";
     
+    // Recalculate ratio based on current WPI/PPI 
+    appState.ratio = appState.wpi > 0 ? (appState.ppi / appState.wpi) : 1;
+
     updateCanvasDimensions();
+    saveAppStateToLocalStorage(); // Save restored state
 }
 
-document.getElementById('btnUndo').addEventListener('click', () => {
+function undo() {
     if (appState.historyStep > 0) {
+        // Clear the switch undo state if we use standard undo
+        appState.lastSwitch.preGridData = null; 
         appState.historyStep--;
         restoreHistory(appState.historyStep);
     }
-});
+}
 
-document.getElementById('btnRedo').addEventListener('click', () => {
+function redo() {
     if (appState.historyStep < appState.history.length - 1) {
+        // Clear the switch undo state
+        appState.lastSwitch.preGridData = null; 
         appState.historyStep++;
         restoreHistory(appState.historyStep);
     }
-});
+}
 
-document.getElementById('btnClear').addEventListener('click', () => {
-    if(confirm("Clear the entire grid?")) {
-        for(let r=0; r<appState.rows; r++) {
-            for(let c=0; c<appState.cols; c++) {
-                appState.gridData[r][c] = -1;
-            }
+// Clear grid data without prompting or affecting history/state
+function clearGridDataOnly() {
+    for(let r=0; r<appState.rows; r++) {
+        for(let c=0; c<appState.cols; c++) {
+            appState.gridData[r][c] = -1;
         }
-        drawGrid();
-        saveHistory();
     }
-});
+    drawGrid();
+}
 
-
-/* =========================================
-   7. DIALOGS & FILE I/O
-   ========================================= */
-
-const gridModal = document.getElementById('gridModal');
-document.getElementById('btnGridSettings').addEventListener('click', () => {
-    document.getElementById('inpRows').value = appState.rows;
-    document.getElementById('inpCols').value = appState.cols;
-    document.getElementById('inpRatio').value = appState.ratio;
-    gridModal.style.display = 'block';
-});
-document.getElementById('btnApplyGrid').addEventListener('click', () => {
-    const r = parseInt(document.getElementById('inpRows').value);
-    const c = parseInt(document.getElementById('inpCols').value);
-    const ratio = parseFloat(document.getElementById('inpRatio').value);
-    if (r > 0 && c > 0 && ratio > 0) {
-        appState.ratio = ratio;
-        resizeGridData(r, c);
-        
-        if (appState.trace.src) {
-            fitImageToGrid();
-        }
-
-        updateCanvasDimensions();
+function clearGrid() {
+    if(confirm("Clear all drawing from the grid? The loaded image will remain.")) {
+        clearGridDataOnly();
         saveHistory();
-        closeModal('gridModal');
-    }
-});
-
-const paletteModal = document.getElementById('paletteModal');
-document.getElementById('btnPalette').addEventListener('click', () => {
-    renderPaletteModal();
-    paletteModal.style.display = 'block';
-});
-
-function updateCurrentColorDisplay() {
-    const div = document.getElementById('current-color-display');
-    const color = appState.activePalette[appState.selectedColorIndex];
-    if (color) {
-        div.style.backgroundColor = color.hex;
-        div.title = color.name;
-    } else {
-        div.style.backgroundColor = 'transparent';
     }
 }
 
+// Keyboard shortcut listeners
+function setupGlobalKeyListeners() {
+    window.addEventListener('keydown', (e) => {
+        // Check if the focus is on an input element (to allow normal text editing)
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        const isCtrl = e.ctrlKey || e.metaKey; // Ctrl for Windows/Linux, Cmd for Mac
+        const isShift = e.shiftKey;
+
+        if (isCtrl) {
+            if (e.key === 'z') {
+                e.preventDefault();
+                if (isShift) {
+                    redo();
+                } else {
+                    undo();
+                }
+            } else if (e.key === 'y') {
+                e.preventDefault();
+                redo();
+            }
+        }
+    });
+}
+
+
+/* =========================================
+   7. MODAL LISTENERS AND LOGIC
+   ========================================= */
+
+function setupMenuListeners() {
+    // Dropdown toggle logic
+    document.querySelectorAll('.menu-item').forEach(menu => {
+        menu.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            const dropdown = menu.querySelector('.dropdown');
+            
+            document.querySelectorAll('.dropdown').forEach(d => {
+                if (d !== dropdown) d.style.display = 'none';
+            });
+
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        });
+    });
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
+    });
+
+    // Menu Item Actions
+    document.getElementById('menuOpen').addEventListener('click', () => document.getElementById('fileInputXML').click());
+    document.getElementById('menuSave').addEventListener('click', savePattern);
+    
+    // PNG Export
+    document.getElementById('menuExportPNG').addEventListener('click', exportPatternPNG);
+
+    document.getElementById('menuUndo').addEventListener('click', undo);
+    document.getElementById('menuRedo').addEventListener('click', redo);
+    
+    // Grid Settings
+    document.getElementById('menuGridSettings').addEventListener('click', () => {
+        document.getElementById('inpWidthInches').value = appState.widthInches;
+        document.getElementById('inpHeightInches').value = appState.heightInches;
+        document.getElementById('inpWPI').value = appState.wpi;
+        document.getElementById('inpPPI').value = appState.ppi;
+        calculateGrid(); // Update calculated labels
+        document.getElementById('gridModal').style.display = 'block';
+    });
+    
+    // Palette Manager
+    document.getElementById('menuPalette').addEventListener('click', () => {
+        renderPaletteModal();
+        document.getElementById('paletteModal').style.display = 'block';
+    });
+}
+
+// Grid Modal Logic
+const gridInputs = ['inpWidthInches', 'inpHeightInches', 'inpWPI', 'inpPPI'];
+gridInputs.forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+        // Update temporary state for display
+        appState.widthInches = parseFloat(document.getElementById('inpWidthInches').value) || appState.widthInches;
+        appState.heightInches = parseFloat(document.getElementById('inpHeightInches').value) || appState.heightInches;
+        appState.wpi = parseInt(document.getElementById('inpWPI').value) || appState.wpi;
+        appState.ppi = parseInt(document.getElementById('inpPPI').value) || appState.ppi;
+        calculateGrid();
+    });
+});
+
+document.getElementById('btnApplyGrid').addEventListener('click', () => {
+    const wIn = parseFloat(document.getElementById('inpWidthInches').value);
+    const hIn = parseFloat(document.getElementById('inpHeightInches').value);
+    const wpi = parseInt(document.getElementById('inpWPI').value);
+    const ppi = parseInt(document.getElementById('inpPPI').value);
+
+    if (wIn > 0 && hIn > 0 && wpi > 0 && ppi > 0) {
+        
+        // Check if the factors that determine the grid's WIDTH have changed
+        const widthChanged = appState.wpi !== wpi || appState.widthInches !== wIn;
+
+        appState.widthInches = wIn;
+        appState.heightInches = hIn; // Keep this value until fitImageToGrid runs
+        appState.wpi = wpi;
+        appState.ppi = ppi;
+        
+        calculateGrid(); // Final calculation and resizeGridData() call (updates appState.cols)
+        
+        // --- NEW LOGIC: Recalculate Image Fit if Width changed ---
+        if (appState.trace.naturalWidth && widthChanged) {
+            fitImageToGrid(); // This recalculates heightInches and rows based on new width
+        } else {
+            // If only PPI or heightInches changed, just update visuals
+            updateCanvasDimensions(); 
+        }
+
+        saveHistory();
+        closeModal('gridModal');
+    } else {
+        alert("Please ensure all dimension and density values are greater than zero.");
+    }
+});
+
+
+// Palette Modal Logic
 function renderPaletteModal() {
     const activeC = document.getElementById('activePaletteContainer');
     const masterC = document.getElementById('masterPaletteContainer');
@@ -878,22 +1708,32 @@ function renderPaletteModal() {
         d.className = 'color-swatch';
         if (idx === appState.selectedColorIndex) d.classList.add('selected');
         d.style.backgroundColor = color.hex;
-        d.title = `${color.name} (Click to select, Right-click to remove)`;
+        d.title = `${color.name.charAt(0).toUpperCase() + color.name.slice(1)}`; // Less verbose tooltip
         
         d.addEventListener('click', () => {
+            // Update lastColorIndex before changing selectedColorIndex
+            appState.lastColorIndex = appState.selectedColorIndex;
             appState.selectedColorIndex = idx;
             renderPaletteModal();
-            updateCurrentColorDisplay();
+            renderToolbarPalette();
         });
         d.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             if (appState.activePalette.length > 1) {
                 appState.activePalette.splice(idx, 1);
+                // Ensure selectedColorIndex is valid after removal
                 if (appState.selectedColorIndex >= appState.activePalette.length) {
                     appState.selectedColorIndex = appState.activePalette.length - 1;
                 }
-                updateCurrentColorDisplay();
+                // Ensure lastColorIndex is valid
+                if (appState.lastColorIndex >= appState.activePalette.length) {
+                    appState.lastColorIndex = appState.selectedColorIndex === 0 ? 1 : 0;
+                }
+                
+                renderToolbarPalette();
                 renderPaletteModal();
+                drawGrid(); // Redraw in case removed color was used
+                saveAppStateToLocalStorage(); // Palette change is a persistent state change
             }
         });
         activeC.appendChild(d);
@@ -903,11 +1743,13 @@ function renderPaletteModal() {
         const d = document.createElement('div');
         d.className = 'color-swatch';
         d.style.backgroundColor = color.hex;
-        d.title = `Add ${color.name}`;
+        d.title = `${color.name.charAt(0).toUpperCase() + color.name.slice(1)}`; // Less verbose tooltip
         d.addEventListener('click', () => {
             if (!appState.activePalette.find(c => c.hex === color.hex)) {
                 appState.activePalette.push(color);
                 renderPaletteModal();
+                renderToolbarPalette();
+                saveAppStateToLocalStorage(); // Palette change is a persistent state change
             }
         });
         masterC.appendChild(d);
@@ -930,19 +1772,25 @@ document.getElementById('fileInputJSON').addEventListener('change', (e) => {
             if (Array.isArray(arr) && arr[0].hex) {
                 appState.activePalette = arr;
                 appState.selectedColorIndex = 0;
+                appState.lastColorIndex = 1;
                 renderPaletteModal();
-                updateCurrentColorDisplay();
-                alert("Palette loaded.");
+                renderToolbarPalette();
+                drawGrid(); // Redraw with potentially new palette
+                saveAppStateToLocalStorage(); // Palette change is a persistent state change
             }
-        } catch(err) {}
+        } catch(err) { alert("Error loading palette JSON."); }
     };
     reader.readAsText(file);
     e.target.value='';
 });
 
-document.getElementById('btnSave').addEventListener('click', () => {
+function savePattern() {
+    if (appState.cols <= 0 || appState.rows <= 0) {
+        alert("Cannot save: Grid dimensions are invalid.");
+        return;
+    }
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<PatternGridData>\n`;
-    xml += `  <GridSettings>\n    <Rows>${appState.rows}</Rows>\n    <Columns>${appState.cols}</Columns>\n    <CellRatio>${appState.ratio}</CellRatio>\n  </GridSettings>\n`;
+    xml += `  <WeaveSettings>\n    <WidthInches>${appState.widthInches}</WidthInches>\n    <HeightInches>${appState.heightInches}</HeightInches>\n    <WPI>${appState.wpi}</WPI>\n    <PPI>${appState.ppi}</PPI>\n  </WeaveSettings>\n`;
     xml += `  <Palette>\n`;
     appState.activePalette.forEach((c, i) => {
         xml += `    <Color index="${i}" hex="${c.hex}" name="${c.name}"/>\n`;
@@ -953,11 +1801,7 @@ document.getElementById('btnSave').addEventListener('click', () => {
     }
     xml += `  </Data>\n</PatternGridData>`;
     downloadFile(xml, 'pattern.xml', 'text/xml');
-});
-
-document.getElementById('btnOpen').addEventListener('click', () => {
-    document.getElementById('fileInputXML').click();
-});
+}
 
 document.getElementById('fileInputXML').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -967,9 +1811,12 @@ document.getElementById('fileInputXML').addEventListener('change', (e) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(evt.target.result, "text/xml");
         try {
-            appState.rows = parseInt(xmlDoc.getElementsByTagName("Rows")[0].textContent);
-            appState.cols = parseInt(xmlDoc.getElementsByTagName("Columns")[0].textContent);
-            appState.ratio = parseFloat(xmlDoc.getElementsByTagName("CellRatio")[0].textContent);
+            appState.widthInches = parseFloat(xmlDoc.getElementsByTagName("WidthInches")[0].textContent);
+            appState.heightInches = parseFloat(xmlDoc.getElementsByTagName("HeightInches")[0].textContent);
+            appState.wpi = parseInt(xmlDoc.getElementsByTagName("WPI")[0].textContent);
+            appState.ppi = parseInt(xmlDoc.getElementsByTagName("PPI")[0].textContent);
+            
+            calculateGrid(); // Recalculate grid based on new weave settings
             
             const colorNodes = xmlDoc.getElementsByTagName("Color");
             const newPalette = [];
@@ -980,26 +1827,417 @@ document.getElementById('fileInputXML').addEventListener('change', (e) => {
             const newData = [];
             for(let i=0; i<rowNodes.length; i++) newData.push(rowNodes[i].textContent.split(',').map(Number));
             appState.gridData = newData;
+            
+            appState.selectedColorIndex = 0; // Reset selected color
+            appState.lastColorIndex = 1;
 
             updateCanvasDimensions();
+            renderToolbarPalette();
             saveHistory();
             alert("Pattern loaded.");
-        } catch (err) { alert("Error parsing XML."); }
+        } catch (err) { alert("Error parsing XML. File format may be incorrect."); }
     };
     reader.readAsText(file);
     e.target.value='';
 });
 
-document.getElementById('btnZoomIn').addEventListener('click', () => {
-    appState.zoom += 0.25;
-    updateCanvasDimensions();
-});
-document.getElementById('btnZoomOut').addEventListener('click', () => {
-    if (appState.zoom > 0.25) {
-        appState.zoom -= 0.25;
-        updateCanvasDimensions();
+/* =========================================
+   8. DIGITIZING FUNCTIONS
+   ========================================= */
+
+// New function to find the closest color in the active palette
+function getClosestColorIndex(r, g, b, activePalette) {
+    let minDistance = Infinity;
+    let closestIndex = -1;
+
+    for (let i = 0; i < activePalette.length; i++) {
+        const hex = activePalette[i].hex.substring(1); // Remove #
+        // Convert hex to R, G, B
+        const pR = parseInt(hex.substring(0, 2), 16);
+        const pG = parseInt(hex.substring(2, 4), 16);
+        const pB = parseInt(hex.substring(4, 6), 16);
+
+        // Euclidean distance (color difference)
+        const distance = Math.sqrt(
+            Math.pow(r - pR, 2) +
+            Math.pow(g - pG, 2) +
+            Math.pow(b - pB, 2)
+        );
+
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestIndex = i;
+        }
     }
+    return closestIndex;
+}
+
+// RESTORED DIGITIZE IMAGE LOGIC
+function digitizeImage() {
+    if (!appState.trace.src) {
+        alert("Please load an image first.");
+        return;
+    }
+    if (appState.activePalette.length === 0) {
+        alert("Please define an active palette before digitizing.");
+        return;
+    }
+    if (appState.cols <= 0 || appState.rows <= 0) {
+        alert("Please set valid grid dimensions (WPI/PPI) before digitizing.");
+        return;
+    }
+
+    // 1. Setup temporary canvas to read image pixels
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // The image must be drawn at its *current display dimensions* and *position* // relative to the logical grid (1x zoom) for correct sampling.
+    const gridLogic = getGridLogicDimensions();
+    
+    tempCanvas.width = gridLogic.width;
+    tempCanvas.height = gridLogic.height;
+
+    // Draw the tracing image onto the temporary canvas
+    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // Image Y position must be inverted for canvas drawing (Y=0 is top)
+    const imgDrawX = appState.trace.x;
+    // Y is the offset from the bottom, so Canvas Top Y = Grid Height - Image Height - Y Offset
+    const imgDrawY = gridLogic.height - appState.trace.height - appState.trace.y; 
+
+    tempCtx.drawImage(
+        tracingImg, 
+        imgDrawX, 
+        imgDrawY, 
+        appState.trace.width, 
+        appState.trace.height
+    );
+
+    // Get pixel data from the entire grid area
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const data = imageData.data;
+    
+    const cellW = gridLogic.cellW;
+    const cellH = gridLogic.cellH;
+    
+    // 2. Sample and Quantize
+    const newGridData = [];
+    
+    for (let r = 0; r < appState.rows; r++) {
+        const row = [];
+        // r is the row index from the bottom (logical)
+        
+        for (let c = 0; c < appState.cols; c++) {
+            // Calculate the sample point (center of the cell)
+            const sampleX = Math.floor(c * cellW + cellW / 2);
+            
+            // To get the corresponding Y pixel coordinate on the canvas (from top):
+            // Canvas Y = (Total Rows - 1 - r) * cellH + cellH / 2
+            const sampleY = Math.floor((appState.rows - 1 - r) * cellH + cellH / 2);
+            
+            // Calculate the index in the 1D pixel array (4 values per pixel: R, G, B, A)
+            const pixelIndex = (sampleY * tempCanvas.width + sampleX) * 4;
+            
+            const R = data[pixelIndex];
+            const G = data[pixelIndex + 1];
+            const B = data[pixelIndex + 2];
+            // const A = data[pixelIndex + 3]; // Alpha channel (usually ignored for color matching)
+
+            const colorIndex = getClosestColorIndex(R, G, B, appState.activePalette);
+            
+            row.push(colorIndex);
+        }
+        newGridData.push(row);
+    }
+
+    // 3. Apply changes
+    appState.gridData = newGridData;
+    drawGrid();
+    saveHistory();
+    alert("Image digitized successfully! You can now use the drawing tools to refine the pattern.");
+}
+
+function fitImageToGrid() {
+    if (!appState.trace.naturalWidth || !appState.trace.naturalHeight) return;
+
+    // --- 1. Calculate Grid-Aligned Image Dimensions (at 1x zoom) ---
+    const gridLogic = getGridLogicDimensions(); // Current grid dimensions (logical px at 1x)
+    const imageAR = appState.trace.imageRatio; // W/H
+    
+    // The image's displayed width must match the grid's logical width.
+    const newW = gridLogic.width;
+    const newH = newW / imageAR;
+    
+    appState.trace.width = newW;
+    appState.trace.height = newH;
+    
+    // Set (0, 0) to bottom-left (relative to the grid wrapper)
+    appState.trace.x = 0;
+    appState.trace.y = 0; 
+    
+    // --- 2. Calculate New Exact Grid Inches ---
+    // Total Warps (Cols) is fixed by WPI and initial WidthInches.
+    // New exact Height (in inches) = (Image Width in inches) / (Image Aspect Ratio W/H)
+    // Image Width in inches = appState.widthInches
+    const newHeightInches = appState.widthInches / imageAR;
+
+    // 3. Apply New Dimensions
+    appState.heightInches = newHeightInches;
+    appState.rows = Math.round(newHeightInches * appState.ppi); 
+    
+    // The grid must now be resized and redrawn
+    resizeGridData(appState.rows, appState.cols); 
+    
+    // We update the canvas dimensions and visuals
+    updateCanvasDimensions(); 
+    
+    syncDigitizeModalValues(); 
+    saveAppStateToLocalStorage();
+}
+
+
+document.getElementById('fileInputImg').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const img = new Image();
+            img.onload = () => {
+                // Store the full Data URL in state (ONLY here, not in persistent storage)
+                appState.trace.src = img.src; 
+                appState.trace.naturalWidth = img.width;
+                appState.trace.naturalHeight = img.height;
+                appState.trace.imageRatio = img.width / img.height;
+                
+                tracingImg.src = img.src;
+                
+                // 1. Fit image and resize grid's Height/Rows to match image proportions exactly.
+                fitImageToGrid(); 
+                
+                // Reset/set image dominance to 50% for standard tracing view
+                appState.imageDominance = 50;
+                opacitySlider.value = 50;
+                opacityLabel.textContent = '50%';
+                
+                // 2. Clear the grid when a new image is loaded
+                clearGridDataOnly(); 
+                
+                updateCanvasDimensions(); 
+                saveHistory(); // Save the cleared grid state (which also saves trace info)
+            };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    e.target.value = '';
 });
+
+function syncDigitizeModalValues() {
+    // These inputs are disabled but we sync the underlying state to reflect the automatic lock
+    document.getElementById('inpImgX').value = Math.round(appState.trace.x);
+    document.getElementById('inpImgY').value = Math.round(appState.trace.y);
+    const currentScale = (appState.trace.width / appState.trace.naturalWidth) * 100;
+    document.getElementById('inpImgScale').value = Math.round(currentScale);
+    
+    // Also update the height in the Grid Setup modal to reflect the locked dimension
+    document.getElementById('inpHeightInches').value = appState.heightInches.toFixed(2);
+}
+
+// Button Handlers for Image Movement/Scale (Inside Digitize Modal)
+// NOTE: These are disabled in the HTML, but the logic remains for internal functions like fitImageToGrid
+
+document.getElementById('btnImgFitWidth').addEventListener('click', () => {
+    fitImageToGrid(); // Fit width is the primary function now
+    saveAppStateToLocalStorage();
+});
+document.getElementById('btnImgReset').addEventListener('click', () => {
+    fitImageToGrid();
+    saveAppStateToLocalStorage();
+});
+
+
+/* =========================================
+   9. EXPORT PNG LOGIC (NEW RESOLUTION)
+   ========================================= */
+
+function exportPatternPNG() {
+    if (appState.cols <= 0 || appState.rows <= 0) {
+        alert("Cannot export: Grid dimensions are invalid.");
+        return;
+    }
+    
+    const EXPORT_PPI = 300; // Pixels Per Inch
+    const PADDING = 60;     // Space for rulers and labels (in pixels)
+    
+    // 1. Calculate Cell Dimensions
+    const exportCellW = EXPORT_PPI / appState.wpi; // Warp Cell Width (px)
+    
+    // Pick cell height (px) = EXPORT_PPI / PPI
+    const exportCellH = EXPORT_PPI / appState.ppi; 
+
+    // Total Pattern Dimensions (without padding)
+    const patternW = appState.cols * exportCellW;
+    const patternH = appState.rows * exportCellH;
+    
+    // Total Canvas Dimensions (Pattern + Padding)
+    const totalW = patternW + PADDING;
+    // Add extra padding at the bottom for the ruler/labels
+    const totalH = patternH + PADDING; 
+
+    // 2. Create and Setup Canvas
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    // Use Math.round() for pixel assignment to prevent floating point issues in canvas size
+    tempCanvas.width = Math.round(totalW);
+    tempCanvas.height = Math.round(totalH);
+
+    // Fill background (White)
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // Set up drawing styles for grid and rulers
+    tempCtx.strokeStyle = "#888"; 
+    tempCtx.fillStyle = "#000";
+    tempCtx.font = '12px Figtree, sans-serif';
+    tempCtx.textAlign = 'center';
+    tempCtx.textBaseline = 'middle';
+    tempCtx.lineWidth = 1;
+
+    // --- Drawing Coordinates ---
+    // The pattern starts at (X, Y) relative to the top-left of the canvas.
+    const drawXStart = PADDING;
+    const drawYStart = 0; 
+
+    // 3. Draw the Pattern Grid
+    tempCtx.save();
+    tempCtx.translate(drawXStart, drawYStart); // Translate origin to top-left of pattern area
+
+    for (let r = 0; r < appState.rows; r++) {
+        // InvertedR is the row index from the grid BOTTOM (logical data access)
+        const invertedR = appState.rows - 1 - r; 
+        
+        for (let c = 0; c < appState.cols; c++) {
+            const colorIndex = appState.gridData[invertedR][c];
+            const drawY = r * exportCellH; // Canvas Y coordinate (from pattern top)
+            
+            // Draw colored cell
+            if (colorIndex > -1 && appState.activePalette[colorIndex]) {
+                tempCtx.fillStyle = appState.activePalette[colorIndex].hex;
+                tempCtx.fillRect(c * exportCellW, drawY, exportCellW, exportCellH);
+            }
+        }
+    }
+
+    // 4. Draw Grid Lines (Picks/Horizontal only, every 20 rows)
+    tempCtx.strokeStyle = "#bbb"; // Lighter grid lines
+    tempCtx.beginPath();
+    for (let r = 0; r <= appState.rows; r++) {
+        if (r % 20 === 0) {
+            const drawY = r * exportCellH;
+            tempCtx.moveTo(0, drawY);
+            tempCtx.lineTo(patternW, drawY);
+        }
+    }
+    tempCtx.stroke();
+    
+    tempCtx.restore(); // Restore context to original (0,0) before drawing rulers
+
+    // --- 5. Draw Rulers and Labels ---
+    
+    // PPI for 0.25 inch interval
+    const quarterInchPx = EXPORT_PPI * 0.25; 
+
+    // A. Bottom Ruler (Warp/Columns)
+    const rulerBottomY = totalH - PADDING + 15; // Ruler line position
+    
+    tempCtx.beginPath();
+    tempCtx.strokeStyle = "#000"; 
+    tempCtx.lineWidth = 1;
+    tempCtx.moveTo(drawXStart, rulerBottomY);
+    tempCtx.lineTo(drawXStart + patternW, rulerBottomY);
+    
+    for (let i = 0; i <= appState.widthInches * 4; i++) {
+        const xPos = drawXStart + (i * quarterInchPx);
+        let tickHeight = 5;
+        let label = '';
+
+        if (i % 4 === 0) { // Every 1 inch (i is a multiple of 4)
+            tickHeight = 10;
+            label = `${i / 4}"`;
+        }
+
+        tempCtx.moveTo(xPos, rulerBottomY);
+        tempCtx.lineTo(xPos, rulerBottomY + tickHeight);
+        
+        if (label) {
+            tempCtx.fillText(label, xPos, rulerBottomY + tickHeight + 8);
+        }
+    }
+    tempCtx.stroke();
+
+
+    // B. Left Ruler (Pick/Rows)
+    const rulerLeftX = PADDING - 15; // Ruler line position
+    
+    tempCtx.beginPath();
+    tempCtx.moveTo(rulerLeftX, drawYStart);
+    tempCtx.lineTo(rulerLeftX, drawYStart + patternH);
+    
+    for (let i = 0; i <= appState.heightInches * 4; i++) {
+        const yPos = drawYStart + patternH - (i * quarterInchPx); // Draw from bottom up
+        let tickWidth = 5;
+        let label = '';
+        
+        if (i % 4 === 0) { // Every 1 inch
+            tickWidth = 10;
+            label = `${i / 4}"`;
+        }
+
+        tempCtx.moveTo(rulerLeftX, yPos);
+        tempCtx.lineTo(rulerLeftX - tickWidth, yPos);
+        
+        if (label) {
+            // Align label to the right of the tick
+            tempCtx.textAlign = 'right';
+            // Adjust yPos slightly down to center on the horizontal line
+            tempCtx.fillText(label, rulerLeftX - tickWidth - 8, yPos + 3); 
+            tempCtx.textAlign = 'center'; // Reset alignment
+        }
+    }
+    tempCtx.stroke();
+
+    // C. Left Row Labels (Every 20 rows)
+    tempCtx.fillStyle = "#333";
+    tempCtx.textAlign = 'right';
+    for (let r = 0; r <= appState.rows; r += 20) {
+        // r is the logical row number from the bottom (0, 20, 40...)
+        
+        // Canvas Y position corresponds to the top edge of this logical row r
+        const yCenter = drawYStart + patternH - (r * exportCellH);
+        
+        // Only label if the row number is 0 or a multiple of 20
+        if (r === 0 || r > 0) {
+            // Position 5px left of the pattern, vertically centered on the pick line
+            tempCtx.fillText(r.toString(), drawXStart - 5, yCenter + (r === 0 ? 0 : 3) ); // +3 to center vertically on the pick line
+        }
+    }
+    tempCtx.textAlign = 'center'; // Reset alignment
+
+    // 6. Trigger download
+    const dataURL = tempCanvas.toDataURL('image/png');
+    
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = 'weaving_pattern_ruled.png'; 
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+
+/* =========================================
+   10. UTILITY
+   ========================================= */
 
 function downloadFile(content, fileName, mimeType) {
     const blob = new Blob([content], { type: mimeType });
