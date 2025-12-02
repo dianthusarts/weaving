@@ -389,6 +389,13 @@
                 <input type="range" id="inpOpacity" min="0" max="100" value="50">
             </div>
 
+            <div class="panel-slider-group">
+                <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-weight: 600;">
+                    <span>Display Grid</span>
+                    <input type="checkbox" id="inpDisplayGrid" checked>
+                </label>
+            </div>
+
         </div>
     </div>
 </div>
@@ -502,7 +509,7 @@
 
 <script>
 // --- START: Timestamp for Version Control ---
-const TIMESTAMP_STRING = '12/02/2025 8:15:00 AM EST (Pen Drag/Fill Toggle Fix)'; 
+const TIMESTAMP_STRING = '12/02/2025 03:16 PM EST'; 
 function updateTimestamp() {
     document.getElementById('timestamp').textContent = TIMESTAMP_STRING;
 }
@@ -590,6 +597,7 @@ const defaultAppState = {
     
     // UI Label is "Opacity"
     imageDominance: 50, // 0 to 100 
+    displayGrid: true,
     toolMode: 'pen', 
     
     trace: {
@@ -712,6 +720,7 @@ function saveAppStateToLocalStorage() {
             selectedColorIndex: appState.selectedColorIndex,
             lastColorIndex: appState.lastColorIndex,
             imageDominance: appState.imageDominance,
+            displayGrid: appState.displayGrid,
             // Only save image POSITION/SCALE, not the source data URL
             trace: {
                 x: appState.trace.x, 
@@ -811,6 +820,7 @@ function init() {
     // 2. Set initial slider value and label
     opacitySlider.value = appState.imageDominance;
     opacityLabel.textContent = appState.imageDominance + '%';
+    document.getElementById('inpDisplayGrid').checked = appState.displayGrid;
 
     // 3. Set dimensions and draw
     updateCanvasDimensions();
@@ -1086,44 +1096,45 @@ function drawGrid() {
     }
 
     // 3. Draw Grid Lines (Warp/Vertical and Pick/Horizontal)
-
-    // --- A. Draw all Horizontal Lines (Picks) in Gray (Default) ---
-    ctx.strokeStyle = '#cccccc'; // Grid line color (light gray for most)
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let r = 0; r <= appState.rows; r++) {
-        const y = r * cellH; // Logical row index from the top of the grid
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-    }
-    ctx.stroke(); 
-
-    // --- B. Redraw Every 8th Horizontal Line (Picks) in Black (Counting from the bottom) ---
-    ctx.beginPath();
-    ctx.strokeStyle = '#000000'; // Set to black
-    ctx.lineWidth = 1;
-    for (let r = 0; r <= appState.rows; r++) {
-        // r is the row index from the top (0 = top line, appState.rows = bottom line)
-        const r_bottom = appState.rows - r; // Row number counting from 0 at the bottom pick line
-        
-        if (r_bottom % 8 === 0) { // The bottom line (r_bottom=0) and every 8th line up should be black
-            const y = r * cellH;
+    if (appState.displayGrid) {
+        // --- A. Draw all Horizontal Lines (Picks) in Gray (Default) ---
+        ctx.strokeStyle = '#cccccc'; // Grid line color (light gray for most)
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let r = 0; r <= appState.rows; r++) {
+            const y = r * cellH; // Logical row index from the top of the grid
             ctx.moveTo(0, y);
             ctx.lineTo(canvas.width, y);
         }
-    }
-    ctx.stroke();
+        ctx.stroke(); 
 
-    // --- C. Draw ALL Vertical Lines (Warps) in Black ---
-    ctx.beginPath();
-    ctx.strokeStyle = '#000000'; // Set to black (All vertical lines are black)
-    ctx.lineWidth = 1;
-    for (let c = 0; c <= appState.cols; c++) {
-        const x = c * cellW;
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
+        // --- B. Redraw Every 8th Horizontal Line (Picks) in Black (Counting from the bottom) ---
+        ctx.beginPath();
+        ctx.strokeStyle = '#000000'; // Set to black
+        ctx.lineWidth = 1;
+        for (let r = 0; r <= appState.rows; r++) {
+            // r is the row index from the top (0 = top line, appState.rows = bottom line)
+            const r_bottom = appState.rows - r; // Row number counting from 0 at the bottom pick line
+            
+            if (r_bottom % 8 === 0) { // The bottom line (r_bottom=0) and every 8th line up should be black
+                const y = r * cellH;
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+            }
+        }
+        ctx.stroke();
+
+        // --- C. Draw ALL Vertical Lines (Warps) in Black ---
+        ctx.beginPath();
+        ctx.strokeStyle = '#000000'; // Set to black (All vertical lines are black)
+        ctx.lineWidth = 1;
+        for (let c = 0; c <= appState.cols; c++) {
+            const x = c * cellW;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+        }
+        ctx.stroke();
     }
-    ctx.stroke();
 
     // Draw the selection box if active (must be done last)
     drawSelectionBox();
@@ -1241,6 +1252,10 @@ function setupPanelListeners() {
     document.getElementById('btnImgFitWidth').addEventListener('click', () => { fitImageToGrid(); saveAppStateToLocalStorage(); });
     document.getElementById('btnImgReset').addEventListener('click', () => { fitImageToGrid(); saveAppStateToLocalStorage(); });
 
+    document.getElementById('inpDisplayGrid').addEventListener('change', (e) => {
+        appState.displayGrid = e.target.checked;
+        drawGrid();
+    });
 }
 
 
@@ -1407,7 +1422,7 @@ function colorSwitch(r, c) {
         // Restore the grid state
         appState.gridData = JSON.parse(appState.lastSwitch.preGridData);
         appState.lastSwitch.wasUndone = true;
-        drawGrid();
+        drawGrid(); // Redraw with restored data
         saveHistory(); // Save the undo action to history
         return;
     }
@@ -1968,27 +1983,42 @@ function savePattern() {
         return;
     }
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<PatternGridData>\n`;
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<PatternGridData>
+`;
     
-    xml += ` <WeaveSettings>\n <WidthInches>${appState.widthInches}</WidthInches>\n <HeightInches>${appState.heightInches}</HeightInches>\n <WPI>${appState.wpi}</WPI>\n <PPI>${appState.ppi}</PPI>\n </WeaveSettings>\n`;
+    xml += `    <WeaveSettings>
+        <WidthInches>${appState.widthInches}</WidthInches>
+        <HeightInches>${appState.heightInches}</HeightInches>
+        <WPI>${appState.wpi}</WPI>
+        <PPI>${appState.ppi}</PPI>
+    </WeaveSettings>
+`;
 
-    xml += ` <Palette>\n`;
+    xml += `    <Palette>
+`;
     appState.activePalette.forEach((c, i) => {
-        xml += `  <Color index="${i}" hex="${c.hex}" name="${c.name}"/>\n`;
+        xml += `        <Color index="${i}" hex="${c.hex}" name="${c.name}"/>
+`;
     });
-    xml += ` </Palette>\n`;
+    xml += `    </Palette>
+`;
 
-    xml += ` <Data>\n`;
+    xml += `    <Data>
+`;
     for(let r=0; r<appState.rows; r++) {
         let rowData = '';
         for(let c=0; c<appState.cols; c++) {
             rowData += appState.gridData[r][c] > -1 ? appState.gridData[r][c] : 'x'; // 'x' for uncolored
         }
-        xml += `  <Row>${rowData}</Row>\n`;
+        xml += `        <Row>${rowData}</Row>
+`;
     }
-    xml += ` </Data>\n`;
+    xml += `    </Data>
+`;
 
-    xml += `</PatternGridData>\n`;
+    xml += `</PatternGridData>
+`;
     downloadFile(xml, 'weaving_pattern.xml', 'application/xml');
 }
 
@@ -2094,7 +2124,7 @@ function loadImage(e) {
 }
 
 function fitImageToGrid() {
-    if (!appState.trace.src || !appState.trace.naturalWidth) return;
+    if (!appState.trace.src || !appState.trace.naturalWidth) return; 
     
     // 1. Calculate the target pattern width in logical pixels (at 1x zoom)
     const targetPatternWidth = appState.cols * appState.cellBaseWidth;
@@ -2196,7 +2226,7 @@ function digitizeImage() {
     // Image Y position must be calculated for canvas drawing (Y=0 is top)
     const imgDrawX = appState.trace.x;
     // Y position calculation:
-    // Canvas Top Y = Grid Height - Image Height - Y Offset (Y offset is from the bottom of the grid area)
+    // Canvas Top Y = Grid Height - Image Height - Y Offset (Y offset is from the bottom of the grid area) 
     const imgDrawY = gridHeight - appState.trace.height - appState.trace.y; 
 
     tempCtx.drawImage(
@@ -2423,8 +2453,7 @@ function exportPatternPNG() {
     const a = document.createElement('a');
     a.href = dataURL;
     a.download = 'weaving_pattern_ruled.png'; 
-    document.body.appendChild(a);
-    a.click();
+    document.body.appendChild(a); a.click();
     document.body.removeChild(a); 
     // FIX: Removed the erroneous URL.revokeObjectURL(url) call
 }
