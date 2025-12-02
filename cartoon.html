@@ -502,7 +502,7 @@
 
 <script>
 // --- START: Timestamp for Version Control ---
-const TIMESTAMP_STRING = '12/01/2025 7:00:00 PM EST (Rectangle & Fill Fixes)'; 
+const TIMESTAMP_STRING = '12/02/2025 8:15:00 AM EST (Pen Drag/Fill Toggle Fix)'; 
 function updateTimestamp() {
     document.getElementById('timestamp').textContent = TIMESTAMP_STRING;
 }
@@ -586,7 +586,7 @@ const defaultAppState = {
     gridData: [], 
     activePalette: [], 
     selectedColorIndex: 0, 
-    lastColorIndex: -1, 
+    lastColorIndex: 0, // Changed default to 0 to prevent issues if palette only has one color
     
     // UI Label is "Opacity"
     imageDominance: 50, // 0 to 100 
@@ -681,6 +681,11 @@ function loadAppStateFromLocalStorage() {
             // Ensure panX/panY are set if they weren't in old storage
             appState.panX = loadedState.panX !== undefined ? loadedState.panX : 0;
             appState.panY = loadedState.panY !== undefined ? loadedState.panY : 0;
+            
+            // Ensure lastColorIndex is set if it wasn't in old storage
+             appState.lastColorIndex = loadedState.lastColorIndex !== undefined ? loadedState.lastColorIndex : 
+                                       appState.activePalette.length > 1 ? 1 : 0;
+
 
             console.log("State loaded from localStorage (Configuration Only).");
             return true;
@@ -1272,49 +1277,38 @@ function getCellCoords(e) {
 }
 
 // Function to handle painting a single cell (used by pen and single-click rect)
-function paint(r, c, colorIndex = appState.selectedColorIndex) {
+// Added isDrag parameter to control toggle behavior for the pen tool
+function paint(r, c, colorIndex = appState.selectedColorIndex, isDrag = false) { 
     if (r < 0 || r >= appState.rows || c < 0 || c >= appState.cols) return false;
 
     const newColorIndex = colorIndex; 
     const currentColorIndex = appState.gridData[r][c];
     let painted = false;
 
-    // --- FIX 1: PEN/TOGGLE LOGIC ---
-    if (appState.toolMode === 'pen' || (appState.toolMode === 'rectangle' && newColorIndex !== appState.selectedColorIndex)) {
-        // Pen mode or Right-click on Rect mode uses toggle logic
-        if (currentColorIndex === newColorIndex) {
-            // User clicked on a cell that already has the selected/right-click color.
-            // Toggle to the last color index, if defined and different from the current.
-            const toggleTo = appState.lastColorIndex;
-            
-            // Safety check: Don't toggle to transparent (-1), and ensure the color is actually different
-            if (toggleTo > -1 && toggleTo !== newColorIndex) {
-                appState.gridData[r][c] = toggleTo;
-                painted = true;
-            } else {
-                // If toggleTo is invalid or the same as the current color, do nothing.
-                painted = false; 
-            }
-        } else {
-            // This is a click that introduces a new color (or uncolored is clicked).
-            
-            // 1. Record the current color as the last color used (if it was a real color)
-            if (currentColorIndex > -1) {
-                appState.lastColorIndex = currentColorIndex;
-            }
-            
-            // 2. Apply the new color if it's different.
-            if (currentColorIndex !== newColorIndex) {
-                appState.gridData[r][c] = newColorIndex;
-                painted = true;
-            }
-        }
-    } else {
-        // Standard Paint: Used by Left-click Rectangle (which always uses selectedColorIndex) 
-        // OR when the pen/toggle logic above fails.
+    // The Pen tool's specific toggle-on-click logic
+    const isPenSingleClick = appState.toolMode === 'pen' && !isDrag;
+
+    // Check for the "Toggle" condition (only in Pen mode, only on non-drag, and if colors match)
+    if (isPenSingleClick && currentColorIndex === newColorIndex) {
         
-        // 1. Record the current color as the last color used (if it was a real color)
-        if (currentColorIndex > -1) {
+        // Execute Toggle (set back to last color)
+        const toggleTo = appState.lastColorIndex;
+        
+        // Safety check: Ensure the last color is a valid color index (> -1) and different from the current selected color
+        if (toggleTo > -1 && toggleTo !== newColorIndex) {
+            appState.gridData[r][c] = toggleTo;
+            painted = true;
+        } else {
+            // Cannot toggle (e.g., last color is transparent, or same as selected). Do nothing.
+            painted = false; 
+        }
+    } 
+    // This second condition handles all other cases: Pen drag, Rectangle operations, and Pen single-click where colors don't match
+    else {
+        // --- Standard Paint Logic ---
+        
+        // 1. Record the current color as the last color used (if it was a real color and we are about to overwrite it)
+        if (currentColorIndex > -1 && currentColorIndex !== newColorIndex) {
             appState.lastColorIndex = currentColorIndex;
         }
 
@@ -1324,7 +1318,6 @@ function paint(r, c, colorIndex = appState.selectedColorIndex) {
             painted = true;
         }
     }
-    // --- END FIX 1 ---
 
     if (painted) {
         drawGrid();
@@ -1340,20 +1333,38 @@ function fill(startR, startC) {
     const targetColor = appState.gridData[startR][startC];
     let replacementColor = appState.selectedColorIndex;
     
-    // FIX: Fill Toggle Logic: If the target color is the currently selected color, 
-    // the replacement color should be -1 (uncolored/erase).
+    // NEW LOGIC: If the target color is the same as the selected color, toggle back to lastColorIndex.
     if (targetColor === replacementColor) {
-        replacementColor = -1;
-    }
+        
+        const toggleTo = appState.lastColorIndex;
 
-    if (targetColor === replacementColor) return; // No change needed
+        // Check if the last color is a valid index and different from the current selected color
+        if (toggleTo > -1 && toggleTo !== replacementColor) {
+            // The fill will now use the last color as the replacement color
+            replacementColor = toggleTo; 
+            
+            // Record the color we just clicked (targetColor) as the new lastColorIndex 
+            // to enable toggling back to it on the next click.
+            appState.lastColorIndex = targetColor;
+        } else {
+             // Cannot toggle (e.g., last color is transparent or same as selected). Perform no-op.
+             return;
+        }
+
+    } else {
+        // Standard Fill: Update lastColorIndex to the color we are about to overwrite (targetColor)
+        if (targetColor > -1) {
+             appState.lastColorIndex = targetColor;
+        }
+    }
+    
+    // Final check: If after the toggle logic, the target color is the same as the replacement color, no-op.
+    if (targetColor === replacementColor) return; 
 
     const queue = [[startR, startC]];
     let changed = false;
 
-    // Only process if the starting cell is the target color
-    if (appState.gridData[startR][startC] !== targetColor) return;
-    
+    // The start cell's color MUST be changed first to prevent infinite loop.
     appState.gridData[startR][startC] = replacementColor;
     changed = true;
 
@@ -1525,9 +1536,11 @@ function setupToolListeners() {
             // Handle right-click for pen mode
             if (e.button === 2) {
                  const colorToPaint = appState.lastColorIndex > -1 ? appState.lastColorIndex : -1;
-                 paint(r, c, colorToPaint);
+                 // Pass isDrag=false for single-click/start-of-drag operation
+                 paint(r, c, colorToPaint, false); 
             } else {
-                 paint(r, c); 
+                 // Pass isDrag=false for single-click/start-of-drag operation
+                 paint(r, c, appState.selectedColorIndex, false); 
             }
             
             appState.isDrawing = true; 
@@ -1540,7 +1553,7 @@ function setupToolListeners() {
             appState.selection.isActive = true;
             appState.isDrawing = true; 
         } else if (appState.toolMode === 'fill') {
-            // Fill is a single click operation handled in MOUSE DOWN or CONTEXT MENU (right click)
+            // Fill is a single click operation handled in MOUSE DOWN
             if (e.button === 0) { // Left Click
                 const { r, c } = getCellCoords(e);
                 fill(r, c); 
@@ -1576,12 +1589,12 @@ function setupToolListeners() {
         if (appState.toolMode === 'pen') {
             const { r, c } = getCellCoords(e);
             
-            // Use paint with the selected color for left-drag, or last color for right-drag
+            // Pass isDrag=true for drag operation, which forces paint without toggle
             if (e.buttons === 1) { // Left button down
-                paint(r, c, appState.selectedColorIndex);
+                paint(r, c, appState.selectedColorIndex, true);
             } else if (e.buttons === 2) { // Right button down
                 const colorToPaint = appState.lastColorIndex > -1 ? appState.lastColorIndex : -1;
-                paint(r, c, colorToPaint);
+                paint(r, c, colorToPaint, true);
             }
 
         } else if (appState.toolMode === 'rectangle') {
@@ -1623,8 +1636,8 @@ function setupToolListeners() {
                     applyRectangle(startR, startC, endR, endC);
                 } else {
                     // Case 2: Single click - Apply single cell paint/toggle
-                    // FIX: Implements single-click toggle/paint logic for the rectangle tool.
-                    const painted = paint(startR, startC); 
+                    // Pass isDrag=false to allow the single-click toggle logic in paint()
+                    const painted = paint(startR, startC, appState.selectedColorIndex, false); 
                     if (painted) {
                         saveHistory(); 
                     }
@@ -1657,14 +1670,14 @@ function setupToolListeners() {
              saveHistory(); 
         } else if (appState.toolMode === 'rectangle') {
             // Rectangle tool right-click performs a single-cell toggle using the last color
-             const painted = paint(r, c, colorToPaint);
+             const painted = paint(r, c, colorToPaint, false); // Pass isDrag=false
              if (painted) saveHistory();
 
         } else if (appState.toolMode === 'fill') {
-            // Fill with last/uncolored color (if last color is transparent, it erases)
+            // Fill with last/uncolored color (Uses lastColorIndex as the selected color for this one operation)
             const originalSelection = appState.selectedColorIndex;
             appState.selectedColorIndex = colorToPaint;
-            fill(r, c); // fill() calls saveHistory() internally
+            fill(r, c); // fill() calls saveHistory() internally and handles the toggle logic
             appState.selectedColorIndex = originalSelection; // Restore selection
             
         } else if (appState.toolMode === 'switch') {
