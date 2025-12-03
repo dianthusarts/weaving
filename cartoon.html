@@ -473,8 +473,8 @@
 
 <script>
 // --- START: Timestamp for Version Control ---
-// Last Updated: 2025-12-03 05:36 PM
-const TIMESTAMP_STRING = "2025-12-03 05:36 PM"; 
+// Last Updated: 2025-12-03 05:48 PM
+const TIMESTAMP_STRING = "2025-12-03 05:48 PM"; 
 function updateTimestamp() {
     document.getElementById('timestamp').textContent = TIMESTAMP_STRING;
 }
@@ -789,6 +789,64 @@ function setupRulerPanning() {
     });
 }
 
+function setupTouchDrawing() {
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                buttons: 1 // Simulate left-click-drag
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        const mouseEvent = new MouseEvent('mouseup', {});
+        window.dispatchEvent(mouseEvent);
+    });
+}
+
+function setupPinchZoom() {
+    const canvasArea = document.getElementById('canvasArea');
+    let lastZoom = 1;
+
+    canvasArea.addEventListener('gesturestart', (e) => {
+        e.preventDefault();
+        lastZoom = appState.zoom;
+    }, { passive: false });
+
+    canvasArea.addEventListener('gesturechange', (e) => {
+        e.preventDefault();
+        let newZoom = lastZoom * e.scale;
+        newZoom = Math.min(4.0, Math.max(0.1, newZoom)); // Clamp zoom
+        if (newZoom !== appState.zoom) {
+            appState.zoom = newZoom;
+            updateCanvasDimensions();
+        }
+    }, { passive: false });
+
+    canvasArea.addEventListener('gestureend', (e) => {
+        e.preventDefault();
+        saveAppStateToLocalStorage();
+    }, { passive: false });
+}
+
 function init() {
     // Display the timestamp immediately
     updateTimestamp();
@@ -833,6 +891,8 @@ function init() {
     setupPanelListeners();
     setupGlobalKeyListeners();
     setupRulerPanning();
+    setupTouchDrawing();
+    setupPinchZoom();
     renderToolbarPalette();
 }
 
