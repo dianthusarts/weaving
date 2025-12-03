@@ -17,59 +17,7 @@
             background-color: #fff;
         }
 
-        /* --- Menu Bar Styles --- */
-        #patternGridMenu {
-            height: 30px; 
-            background-color: #f4f4f4;
-            border-bottom: 1px solid #ccc;
-            display: flex;
-            align-items: center;
-            padding: 0 5px;
-            flex-shrink: 0;
-            user-select: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            position: relative;
-            z-index: 100;
-            font-size: 14px;
-        }
 
-        .menu-item {
-            position: relative;
-            padding: 0 8px;
-            line-height: 30px;
-            cursor: pointer;
-        }
-        .menu-item:hover {
-            background-color: #ddd;
-        }
-        
-        .dropdown {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background-color: #fff;
-            border: 1px solid #aaa;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-            min-width: 150px;
-            z-index: 101;
-        }
-        .dropdown-item {
-            padding: 5px 10px;
-            white-space: nowrap;
-            cursor: pointer;
-            line-height: 1.5;
-            font-size: 13px;
-        }
-        .dropdown-item:hover {
-            background-color: #0078d4;
-            color: white;
-        }
-        .dropdown-separator {
-            height: 1px;
-            background-color: #eee;
-            margin: 4px 0;
-        }
 
         /* --- Tool Bar (Top Row) --- */
         #toolbar {
@@ -172,16 +120,11 @@
             padding: 8px 0;
             font-size: 13px;
         }
-        /* Adjusted width for 4 buttons per row to keep spacing clean */
-        .panel-tools.four-wide button {
-            width: 48%; /* Keep 48% to allow two buttons to fit neatly on 180px width */
-        }
-        /* Full width button for single items */
-        .panel-tools.full-width button {
-            width: 100%;
-        }
         
         /* --- Shared Button Styles --- */
+        button {
+            font-family: 'Figtree', sans-serif;
+        }
         #toolbar button, .panel-tools button {
             cursor: pointer;
             border: 1px solid #aaa;
@@ -305,24 +248,6 @@
 <body>
 
 <div id="patternGridContainer">
-    <div id="patternGridMenu">
-        <div class="menu-item" id="fileMenu">
-            File
-            <div class="dropdown">
-                <div class="dropdown-item" id="menuOpen">📂 Open Pattern...</div>
-                <div class="dropdown-item" id="menuSave">💾 Save Pattern...</div>
-                <div class="dropdown-separator"></div>
-                </div>
-        </div>
-        <div class="menu-item" id="editMenu">
-            Edit
-            <div class="dropdown">
-                <div class="dropdown-item" id="menuUndo">↩️ Undo (Ctrl+Z)</div>
-                <div class="dropdown-item" id="menuRedo">↪️ Redo (Ctrl+Y)</div>
-            </div>
-        </div>
-    </div>
-    
     <div id="toolbar">
         <span id="dimensionLabel">4.0" W x 7.0" H</span>
         
@@ -352,33 +277,19 @@
         </div>
 
         <div id="controlPanel">
-            
-            <div class="panel-header">Configuration</div>
-            <div class="panel-tools">
-                <button id="menuGridSettings" title="Set Weave Dimensions and Density">📐 Grid Setup</button>
-                <button id="menuPalette" title="Manage Color Palette">🎨 Palette</button>
-            </div>
-            <div class="panel-separator"></div>
-
-            <div class="panel-header">Drawing Tools</div>
+            <div class="panel-header">Drawing</div>
             <div class="panel-tools four-wide">
+                <button id="menuUndo" title="Undo (Ctrl+Z)">↩️ Undo</button>
+                <button id="menuRedo" title="Redo (Ctrl+Y)">↪️ Redo</button>
                 <button id="toolPen" title="Pen (Click and drag to draw or toggle)">✍️ Pen</button>
                 <button id="toolRectangle" title="Drag to draw a filled rectangle">⬛ Rect</button>
+                <button id="menuClear" title="Clear all drawing from the grid">❌ Clear Grid</button>
                 <button id="toolFill" title="Fill (Click a cell to flood fill)">🪣 Fill</button>
                 <button id="toolSwitch" title="Click a cell to globally replace its color">🔄 Swap</button> 
                 <button id="toolPan" title="Pan (Click and drag to move the canvas)">🖐️ Pan</button> 
+                <button id="btnDigitizePanel" title="Automatically convert the traced image into the grid pattern">✨ Digitize</button>
             </div>
 
-            <div class="panel-separator"></div>
-            
-            <div class="panel-header">Image & Grid</div>
-            <div class="panel-tools four-wide">
-                <button id="btnLoadImage" title="Load a new image for tracing or digitizing">📁 Load</button>
-                <button id="btnDigitizePanel" title="Automatically convert the traced image into the grid pattern">✨ Digitize</button>
-                <button id="menuExportPNG_Button" title="Export the current pattern as a high-resolution PNG file">🖼️ Export PNG</button>
-                <button id="menuClear" title="Clear all drawing from the grid">❌ Clear Grid</button>
-            </div>
-            
             <div class="panel-separator"></div>
 
             <div class="panel-slider-group">
@@ -391,11 +302,28 @@
 
             <div class="panel-slider-group">
                 <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-weight: 600;">
-                    <span>Display Grid</span>
                     <input type="checkbox" id="inpDisplayGrid" checked>
+                    <span>Show Grid</span>
                 </label>
             </div>
+            <div class="panel-separator"></div>
+            
+            <div class="panel-header">File</div>
+            <div class="panel-tools">
+                <button id="btnLoadImage" title="Load a new image for tracing or digitizing">📁 Load Image</button>
+                <button id="menuExportPNG_Button" title="Export the current pattern as a high-resolution PNG file">🖼️ Export PNG</button>
+            </div>
+            <div class="panel-tools">
+                <button id="menuOpen" title="Open a previously saved pattern file">📂 Open Pattern</button>
+                <button id="menuSave" title="Save the current pattern to a file">💾 Save Pattern</button>
+            </div>        
+            <div class="panel-separator"></div>
 
+            <div class="panel-header">Configuration</div>
+            <div class="panel-tools">
+                <button id="menuGridSettings" title="Set Weave Dimensions and Density">📐 Grid</button>
+                <button id="menuPalette" title="Manage Color Palette">🎨 Palette</button>
+            </div>
         </div>
     </div>
 </div>
@@ -450,7 +378,7 @@
     <div class="modal-content" style="width: 550px;">
         <div class="modal-header">Palette Manager</div>
         <p style="font-size: 12px; margin-top:0;">
-            1. Drag or Click from <b>Master</b> to add to Active.<br>
+            1. Click from <b>Master</b> to add to Active.<br>
             2. <b>Left Click</b> Active to Select for painting.<br>
             3. <b>Right Click</b> Active to Remove.
         </p>
@@ -503,13 +431,24 @@
     </div>
 </div>
 
+<div id="alertModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">Alert</div>
+        <p id="alertMessage"></p>
+        <div class="control-row">
+            <button onclick="closeModal('alertModal')">OK</button>
+        </div>
+    </div>
+</div>
+
 <input type="file" id="fileInputXML" accept=".xml" style="display:none;">
 <input type="file" id="fileInputJSON" accept=".json" style="display:none;">
 <input type="file" id="fileInputImg" accept="image/*" style="display:none;">
 
 <script>
 // --- START: Timestamp for Version Control ---
-const TIMESTAMP_STRING = '12/02/2025 03:16 PM EST'; 
+// Last Updated: 2025-12-03 12:40 PM
+const TIMESTAMP_STRING = new Date().toLocaleString('en-US', { hour12: true, month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }); 
 function updateTimestamp() {
     document.getElementById('timestamp').textContent = TIMESTAMP_STRING;
 }
@@ -828,7 +767,6 @@ function init() {
     // 4. Save initial state (or loaded state) to history (Grid data only lives in history now)
     saveHistory();
 
-    setupMenuListeners();
     setupToolListeners();
     setupZoomListener();
     setupPanelListeners();
@@ -1236,17 +1174,33 @@ function setupPanelListeners() {
         updateCanvasDimensions(); 
     });
 
-    // Load Image Button
-    document.getElementById('btnLoadImage').addEventListener('click', () => document.getElementById('fileInputImg').click());
+    // New File Buttons
+    document.getElementById('menuOpen').addEventListener('click', () => { document.getElementById('fileInputXML').click(); });
+document.getElementById('fileInputXML').addEventListener('change', loadPattern);
+    document.getElementById('menuSave').addEventListener('click', savePattern);
+    document.getElementById('menuExportPNG_Button').addEventListener('click', exportPatternPNG);
+document.getElementById('btnLoadImage').addEventListener('click', () => document.getElementById('fileInputImg').click());
+document.getElementById('fileInputImg').addEventListener('change', loadImage);
+document.getElementById('menuClear').addEventListener('click', clearGrid);
+
+    // New Edit Buttons
+    document.getElementById('menuUndo').addEventListener('click', undo);
+    document.getElementById('menuRedo').addEventListener('click', redo);
+
+    // Grid Modal Listener
+    document.getElementById('menuGridSettings').addEventListener('click', () => {
+        updateGridModalVisuals();
+        openModal('gridModal');
+    });
+
+    // Palette Modal Listener
+    document.getElementById('menuPalette').addEventListener('click', () => {
+        renderPaletteModal();
+        openModal('paletteModal');
+    });
 
     // DIGITIZE BUTTON RESTORED
     document.getElementById('btnDigitizePanel').addEventListener('click', digitizeImage);
-
-    // NEW: Export PNG Button 
-    document.getElementById('menuExportPNG_Button').addEventListener('click', exportPatternPNG);
-
-    // Clear Grid Button
-    document.getElementById('menuClear').addEventListener('click', clearGrid);
     
     // Image Settings button listeners (kept for code completeness)
     document.getElementById('btnImgFitWidth').addEventListener('click', () => { fitImageToGrid(); saveAppStateToLocalStorage(); });
@@ -1773,60 +1727,16 @@ function setupGlobalKeyListeners() {
    7. MODAL LISTENERS AND LOGIC
    ========================================= */
 
-function setupMenuListeners() {
-    // Dropdown toggle logic
-    document.querySelectorAll('.menu-item').forEach(menu => {
-        menu.addEventListener('click', (e) => {
-            const dropdown = menu.querySelector('.dropdown');
-            if (!dropdown) return;
-            
-            // Close other dropdowns
-            document.querySelectorAll('.dropdown').forEach(d => {
-                if (d !== dropdown) d.style.display = 'none';
-            });
-            
-            // Toggle this dropdown
-            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-            e.stopPropagation(); // Prevent document click listener from immediately closing it
-        });
-    });
 
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
-    });
-
-    // File Menu Listeners (Open/Save)
-    document.getElementById('menuOpen').addEventListener('click', () => { document.getElementById('fileInputXML').click(); });
-    document.getElementById('menuSave').addEventListener('click', savePattern);
-
-    // Edit Menu Listeners
-    document.getElementById('menuUndo').addEventListener('click', undo);
-    document.getElementById('menuRedo').addEventListener('click', redo);
-
-    // Grid Modal Listener
-    document.getElementById('menuGridSettings').addEventListener('click', () => {
-        updateGridModalVisuals();
-        openModal('gridModal');
-    });
-
-    // Palette Modal Listener
-    document.getElementById('menuPalette').addEventListener('click', () => {
-        renderPaletteModal();
-        openModal('paletteModal');
-    });
-    
-    // Clear Grid (also in panel)
-    document.getElementById('menuClear').addEventListener('click', clearGrid);
-    
-    // Bind file readers
-    document.getElementById('fileInputXML').addEventListener('change', loadPattern);
-    document.getElementById('fileInputJSON').addEventListener('change', loadPalette);
-    document.getElementById('fileInputImg').addEventListener('change', loadImage);
-}
 
 // Modal opening/closing
 function openModal(id) { document.getElementById(id).style.display = 'block'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function showAlert(message) {
+    document.getElementById('alertMessage').textContent = message;
+    document.getElementById('alertModal').style.display = 'block';
+}
 
 
 function updateGridModalVisuals() {
@@ -1874,7 +1784,7 @@ document.getElementById('btnApplyGrid').addEventListener('click', () => {
         saveAppStateToLocalStorage();
         closeModal('gridModal');
     } else {
-        alert("Please ensure all dimension and density values are greater than zero.");
+        showAlert("Please ensure all dimension and density values are greater than zero.");
     }
 });
 
@@ -1967,10 +1877,10 @@ function loadPalette(e) {
                 drawGrid(); // Redraw with potentially new palette
                 saveAppStateToLocalStorage(); // Palette change is a persistent state change
             } else {
-                alert("Invalid palette JSON structure.");
+                showAlert("Invalid palette JSON structure.");
             }
         } catch(err) {
-            alert("Error loading palette JSON: " + err.message);
+            showAlert("Error loading palette JSON: " + err.message);
         }
     };
     reader.readAsText(file);
@@ -1979,7 +1889,7 @@ function loadPalette(e) {
 
 function savePattern() {
     if (appState.cols <= 0 || appState.rows <= 0) {
-        alert("Cannot save: Grid dimensions are invalid.");
+        showAlert("Cannot save: Grid dimensions are invalid.");
         return;
     }
 
@@ -2037,7 +1947,7 @@ function loadPattern(e) {
             const data = xmlDoc.getElementsByTagName('Data')[0];
             
             if (!settings || !palette || !data) {
-                alert("Invalid pattern XML format. Missing required tags.");
+                showAlert("Invalid pattern XML format. Missing required tags.");
                 return;
             }
             
@@ -2087,7 +1997,7 @@ function loadPattern(e) {
             saveAppStateToLocalStorage(); // Save new settings/palette/pan to storage
 
         } catch(err) {
-            alert("Error loading pattern XML: " + err.message);
+            showAlert("Error loading pattern XML: " + err.message);
             console.error(err);
         }
     };
@@ -2193,15 +2103,15 @@ function getClosestColorIndex(r, g, b) {
 // RESTORED DIGITIZE IMAGE LOGIC (With Y-axis sampling fix)
 function digitizeImage() {
     if (!appState.trace.src) {
-        alert("Please load an image first.");
+        showAlert("Please load an image first.");
         return;
     }
     if (appState.activePalette.length === 0) {
-        alert("Please define an active palette before digitizing.");
+        showAlert("Please define an active palette before digitizing.");
         return;
     }
     if (appState.cols <= 0 || appState.rows <= 0) {
-        alert("Please set valid grid dimensions (WPI/PPI) before digitizing.");
+        showAlert("Please set valid grid dimensions (WPI/PPI) before digitizing.");
         return;
     }
 
@@ -2279,7 +2189,7 @@ function digitizeImage() {
     appState.gridData = newGridData;
     drawGrid();
     saveHistory();
-    alert("Image digitized successfully! You can now use the drawing tools to refine the pattern.");
+    showAlert("Image digitized successfully! You can now use the drawing tools to refine the pattern.");
 }
 
 function updateDigitizeModalVisuals() {
@@ -2314,7 +2224,7 @@ document.getElementById('btnImgReset').addEventListener('click', () => {
    ========================================= */
 function exportPatternPNG() {
     if (appState.cols <= 0 || appState.rows <= 0) {
-        alert("Cannot export: Grid dimensions are invalid.");
+        showAlert("Cannot export: Grid dimensions are invalid.");
         return;
     }
 
@@ -2472,9 +2382,11 @@ function downloadFile(content, fileName, mimeType) {
     document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function openModal(id) { document.getElementById(id).style.display = 'block'; }
 
-
+function showAlert(message) {
+    document.getElementById('alertMessage').textContent = message;
+    document.getElementById('alertModal').style.display = 'block';
+}
 // Initialize the application
 window.onload = init;
 </script>
