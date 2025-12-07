@@ -115,6 +115,7 @@
             flex-wrap: wrap;
             gap: 5px;
             justify-content: space-between;
+            margin-bottom: 5px; /* Added vertical spacing */
         }
         .panel-tools button {
             width: 48%; /* Default button width */
@@ -251,12 +252,79 @@
             font-size: inherit; /* Inherit font size from parent button */
             color: inherit; /* Inherit color from parent button */
         }
-    </style>
-</head>
-<body>
 
-<div id="patternGridContainer">
-    <div id="toolbar">
+        /* --- New Slide-Out Panel --- */
+        #slideOutPanel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 180px;
+            height: 100%;
+            background-color: #f8f8f8;
+            border-right: 1px solid #ccc;
+            z-index: 20; 
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        }
+
+        #slideOutPanel.is-open {
+            transform: translateX(0);
+        }
+
+        #slideOutToggle {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 50% 50% 0;
+            border: 1px solid #aaa;
+            border-left: none;
+            background: linear-gradient(to right, #fff, #f0f0f0);
+            cursor: pointer;
+            z-index: 21; /* Higher than the panel */
+            transition: left 0.3s ease-in-out;
+        }
+
+        #slideOutToggle.is-open {
+            left: 180px; /* Width of the panel */
+        }
+
+         #slideOutToggle .material-symbols-outlined {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        #slideOutPanel .slide-out-content-wrapper {
+            margin-top: 80px; /* Provides space for the toggle button */
+            padding: 10px;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+    </style>
+
+         </head>
+
+         <body>
+
+         
+
+         <div id="patternGridContainer">
+
+             <div id="toolbar">
         <span id="dimensionLabel">4.0" W x 7.0" H</span>
         
         <div id="current-color-display" style="background-color: #000;" title="Current Paint Color"></div>
@@ -275,17 +343,69 @@
         <span id="timestamp" style="font-size: 11px; margin-left: auto; color: #555;"></span>
     </div>
 
-    <div id="patternGridTool">
-        <div id="canvasArea">
-            <div id="canvasWrapper">
-                <canvas id="rulerCanvas"></canvas>
-                <img id="tracingLayer" alt="" src="">
-                <canvas id="gridCanvas"></canvas>
-            </div>
-        </div>
+                        <div id="patternGridTool">
 
-        <div id="controlPanel">
-            <div class="panel-header">Drawing</div>
+                            <div id="canvasArea">
+
+                                <div id="canvasWrapper">
+
+                                    <canvas id="rulerCanvas"></canvas>
+
+                                    <img id="tracingLayer" alt="" src="">
+
+                                    <canvas id="gridCanvas"></canvas>
+
+                                </div>
+
+                            </div>
+
+                
+
+                            <button id="slideOutToggle" title="Toggle File Panel"><span class="material-symbols-outlined">keyboard_double_arrow_right</span></button>
+
+                
+
+                            <div id="slideOutPanel">
+
+                                <div class="slide-out-content-wrapper">
+
+                                    <div class="panel-header">File</div>
+
+                                    <div class="panel-tools">
+
+                                        <button id="btnLoadImage" title="Load a new image for tracing or digitizing"><span class="material-symbols-outlined">folder_open</span> Load Image</button>
+
+                                        <button id="menuExportPNG_Button" title="Export the current pattern as a high-resolution PNG file"><span class="material-symbols-outlined">download</span> Export PNG</button>
+
+                                    </div>
+
+                                    <div class="panel-tools">
+
+                                        <button id="menuOpen" title="Open a previously saved pattern file"><span class="material-symbols-outlined">folder_open</span> Open Pattern</button>
+
+                                        <button id="menuSave" title="Save the current pattern to a file"><span class="material-symbols-outlined">save</span> Save Pattern</button>
+
+                                    </div>
+
+                                    <div class="panel-separator"></div>
+
+                                    <div class="panel-header">Configuration</div>
+
+                                    <div class="panel-tools">
+
+                                        <button id="menuGridSettings" title="Set Weave Dimensions and Density"><span class="material-symbols-outlined">grid_on</span> Grid</button>
+
+                                        <button id="menuPalette" title="Manage Color Palette"><span class="material-symbols-outlined">palette</span> Palette</button>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                
+
+                            <div id="controlPanel">            <div class="panel-header">Drawing</div>
             <div class="panel-tools four-wide">
                 <button id="menuUndo" title="Undo (Ctrl+Z)"><span class="material-symbols-outlined">undo</span> Undo</button>
                 <button id="menuRedo" title="Redo (Ctrl+Y)"><span class="material-symbols-outlined">redo</span> Redo</button>
@@ -301,7 +421,7 @@
                 <button id="menuClearAll" title="Clear image and grid"><span class="material-symbols-outlined">ink_eraser</span> Clear All</button>
             </div>
             <div class="panel-tools">
-                <button id="toolPan" title="Pan (Click and drag to move the canvas)"><span class="material-symbols-outlined">pan_tool</span> Pan</button> 
+                <button id="toolPan" title="Pan (Click and drag to move the canvas)"><span class="material-symbols-outlined">pan_tool</span> Pan</button>
                 <button id="btnDigitizePanel" title="Automatically convert the traced image into the grid pattern"><span class="material-symbols-outlined">auto_awesome</span> Digitize</button>
             </div>
 
@@ -320,24 +440,6 @@
                     <input type="checkbox" id="inpDisplayGrid" checked>
                     <span>Show Grid</span>
                 </label>
-            </div>
-            <div class="panel-separator"></div>
-            
-            <div class="panel-header">File</div>
-            <div class="panel-tools">
-                <button id="btnLoadImage" title="Load a new image for tracing or digitizing"><span class="material-symbols-outlined">folder_open</span> Load Image</button>
-                <button id="menuExportPNG_Button" title="Export the current pattern as a high-resolution PNG file"><span class="material-symbols-outlined">download</span> Export PNG</button>
-            </div>
-            <div class="panel-tools">
-                <button id="menuOpen" title="Open a previously saved pattern file"><span class="material-symbols-outlined">folder_open</span> Open Pattern</button>
-                <button id="menuSave" title="Save the current pattern to a file"><span class="material-symbols-outlined">save</span> Save Pattern</button>
-            </div>        
-            <div class="panel-separator"></div>
-
-            <div class="panel-header">Configuration</div>
-            <div class="panel-tools">
-                <button id="menuGridSettings" title="Set Weave Dimensions and Density"><span class="material-symbols-outlined">grid_on</span> Grid</button>
-                <button id="menuPalette" title="Manage Color Palette"><span class="material-symbols-outlined">palette</span> Palette</button>
             </div>
         </div>
     </div>
@@ -473,8 +575,8 @@
 
 <script>
 // --- START: Timestamp for Version Control ---
-// Last Updated: 2025-12-03 05:48 PM
-const TIMESTAMP_STRING = "2025-12-03 05:48 PM"; 
+// Last Updated: 2025-12-07 02:04 PM
+const TIMESTAMP_STRING = "2025-12-07 02:04 PM"; 
 function updateTimestamp() {
     document.getElementById('timestamp').textContent = TIMESTAMP_STRING;
 }
@@ -2553,6 +2655,24 @@ function showAlert(message) {
 }
 // Initialize the application
 window.onload = init;
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const slideOutToggle = document.getElementById('slideOutToggle');
+        const slideOutPanel = document.getElementById('slideOutPanel');
+        const toggleIcon = slideOutToggle.querySelector('.material-symbols-outlined');
+
+        slideOutToggle.addEventListener('click', () => {
+            slideOutPanel.classList.toggle('is-open');
+            slideOutToggle.classList.toggle('is-open'); // Toggle class on the button itself
+
+            if (slideOutPanel.classList.contains('is-open')) {
+                toggleIcon.textContent = 'keyboard_double_arrow_left'; // Panel open, icon points left to close
+            } else {
+                toggleIcon.textContent = 'keyboard_double_arrow_right'; // Panel closed, icon points right to open
+            }
+        });
+    });
 </script>
 </body>
 </html>
